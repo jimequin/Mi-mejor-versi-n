@@ -2,22 +2,28 @@
 
 App web sencilla (HTML + CSS + JS, sin frameworks ni instalación) para llevar:
 
-- 📸 Fotos de progreso (botón "+" arriba)
-- 🥗 **Nutrición**: peso, gráfico de evolución y tips
-- 🏋️ **Entrenos**: deporte, minutos y calorías gastadas, con resumen semanal
-- 🛒 **Lista de la compra**: productos por súper (Mercadona, Lidl, Carrefour Express)
+- 📸 Fotos de progreso (botón "+" arriba) + captura opcional en cada registro de peso/entreno
+- 🥗 **Nutrición**: peso y composición corporal completa (grasa, músculo, agua, grasa visceral, masa ósea), IMC automático, gráfico de evolución y tips
+- 🏋️ **Entrenos**: plan semanal reducido (glúteo 3x/semana con sábado incluido, movilidad de sentadilla 3x/semana, movilidad de cadera todos los días), registro de entrenos con ejercicios y kilos, cálculo automático de calorías según tu peso
+- 🛒 **Compra**: menú semanal sugerido (comida en tupper único, cena ligera con pescado), diario de comidas con calorías y macros, lista de la compra por súper
 
 Todos los datos se guardan en tu propio navegador (`localStorage`). No hay servidor,
 así que si cambias de navegador o de móvil, no se sincroniza — es una limitación
 consciente para mantenerlo simple mientras aprendes.
 
-## ⚠️ Sobre las "ofertas"
+## ⚠️ Sobre las "ofertas" y sobre leer fotos automáticamente
 
 La app **no** puede leer en tiempo real las ofertas de Mercadona, Lidl o
-Carrefour Express: esos supermercados no tienen una API pública y bloquean el
-scraping automático. La pestaña de compra te deja anotar manualmente el precio
-u oferta de cada producto. Si quieres, puedes pedirme en el chat de Claude
-"búscame las ofertas de esta semana en [súper]" y las copias aquí a mano.
+Carrefour Express, ni puede "leer" el contenido de una foto de la báscula o
+del entreno (eso requeriría conectar una IA con visión y una clave de API de
+pago). Lo que sí hace:
+
+- Las fotos que subes se guardan para que las puedas consultar luego, pero
+  los datos (peso, grasa%, ejercicios, kilos...) los rellenas tú a mano
+  mirando la foto — son formularios rápidos pensados para tardar segundos.
+- La pestaña de compra te deja anotar manualmente el precio u oferta de cada
+  producto. Si quieres, pídeme en el chat de Claude "búscame las ofertas de
+  esta semana en [súper]" y las copias aquí a mano.
 
 ## Cómo probarla en tu ordenador
 

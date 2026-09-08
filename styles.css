@@ -114,6 +114,7 @@ body{
   flex: 1;
 }
 .tab.hidden{ display:none; }
+.hidden{ display:none !important; }
 
 .card{
   background: var(--card);
@@ -236,6 +237,21 @@ input:focus, select:focus, button:focus{
   cursor: zoom-in;
   flex-shrink: 0;
 }
+.weight-entry{
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 4px;
+}
+.weight-entry-top{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+}
+.weight-entry-extras{
+  font-size: 11px;
+  color: var(--muted);
+  padding-left: 2px;
+}
 .empty-msg{
   color: var(--muted);
   font-size: 13.5px;
@@ -299,9 +315,19 @@ input:focus, select:focus, button:focus{
   opacity: 0.55;
 }
 .week-pill.selected{ opacity: 1; outline: 2px solid var(--text); outline-offset: 1px; }
-.week-pill.type-fuerte{ background: var(--coral); }
-.week-pill.type-ligero{ background: var(--lime); }
+.week-pill.type-gluteo{ background: var(--coral); }
+.week-pill.type-squat{ background: var(--lime); }
 .week-pill.type-descanso{ background: var(--muted); }
+
+.plan-block-title{
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 10px 0 6px;
+}
+.plan-block-title:first-child{ margin-top: 0; }
 
 .plan-day-label{
   font-family: var(--font-display);
@@ -349,6 +375,57 @@ input:focus, select:focus, button:focus{
   font-size: 13.5px;
   margin: 0;
 }
+
+/* EJERCICIOS DENTRO DEL ENTRENO */
+.exercise-rows{
+  display:flex;
+  flex-direction:column;
+  gap: 6px;
+}
+.exercise-row{
+  display:flex;
+  gap: 6px;
+  align-items:center;
+}
+.exercise-row input[type="text"]{ flex: 2; }
+.exercise-row input[type="number"]{ flex: 1; }
+.exercise-row .del{
+  background:none; border:none; color: var(--muted); cursor:pointer; font-size: 18px; flex-shrink:0;
+}
+
+/* MENÚ SEMANAL */
+.menu-plan{
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+}
+.menu-day{
+  border-bottom: 1px dashed var(--card-line);
+  padding-bottom: 8px;
+}
+.menu-day:last-child{ border-bottom:none; padding-bottom:0; }
+.menu-day-title{
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.menu-day-line{
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.menu-day-line b{ color: var(--lime); font-family: var(--font-mono); font-size: 11px; }
+.menu-day-line.cena b{ color: var(--coral); }
+
+/* DIARIO DE COMIDAS */
+.macro-row{
+  display:flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.macro-row .stat-num{ font-size: 20px; }
 .shopping-list{
   list-style:none; margin:0; padding:0;
   display:flex; flex-direction:column; gap:8px;

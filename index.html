@@ -40,24 +40,39 @@
     <!-- NUTRICIÓN -->
     <section class="tab" id="tab-nutricion">
       <div class="card margin-card">
-        <p class="eyebrow">Registrar peso</p>
+        <p class="eyebrow">Registrar medición</p>
         <form id="weightForm" class="stack-form">
+          <input type="number" step="0.1" id="weightInput" placeholder="Peso (kg)" required inputmode="decimal">
           <div class="row-form">
-            <input type="number" step="0.1" id="weightInput" placeholder="kg" required inputmode="decimal">
-            <button type="submit" class="btn btn-lime">Guardar</button>
+            <input type="number" step="0.1" id="fatInput" placeholder="Grasa %" inputmode="decimal">
+            <input type="number" step="0.1" id="muscleInput" placeholder="Músculo %" inputmode="decimal">
           </div>
+          <div class="row-form">
+            <input type="number" step="0.1" id="waterInput" placeholder="Agua %" inputmode="decimal">
+            <input type="number" step="0.1" id="visceralInput" placeholder="Grasa visceral" inputmode="decimal">
+          </div>
+          <input type="number" step="0.01" id="boneInput" placeholder="Masa ósea (kg)" inputmode="decimal">
           <label class="file-label">
-            📷 Adjuntar captura (báscula, app, etc.) — opcional
+            📷 Adjuntar captura de la báscula/app — opcional (solo para consultar luego, no se lee sola)
             <input type="file" id="weightPhotoInput" accept="image/*" hidden>
           </label>
           <span id="weightPhotoName" class="file-name"></span>
+          <button type="submit" class="btn btn-lime">Guardar</button>
         </form>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Tu altura (para calcular el IMC)</p>
+        <div class="row-form">
+          <input type="number" id="heightInput" placeholder="cm" inputmode="numeric">
+          <button id="saveHeightBtn" class="btn btn-ghost">Guardar altura</button>
+        </div>
       </div>
 
       <div class="card margin-card">
         <p class="eyebrow">Evolución</p>
         <canvas id="weightChart" height="160"></canvas>
-        <p class="empty-msg" id="weightEmpty">Aún no hay pesos registrados. Anota el primero arriba.</p>
+        <p class="empty-msg" id="weightEmpty">Aún no hay mediciones registradas. Anota la primera arriba.</p>
       </div>
 
       <div class="card margin-card">
@@ -84,34 +99,36 @@
 
       <div class="card margin-card">
         <p class="eyebrow">🧘 Movilidad de cadera · 10 min</p>
-        <p class="hint-text">Cualquier día, incluso el de descanso.</p>
+        <p class="hint-text">Todos los días — se marca sola, no depende del tipo de día.</p>
         <ul id="mobilityHipList" class="plan-list"></ul>
-      </div>
-
-      <div class="card margin-card">
-        <p class="eyebrow">⬇️ Movilidad para sentadilla profunda</p>
-        <p class="hint-text">Ideal martes/jueves, o como calentamiento los días fuertes.</p>
-        <ul id="mobilitySquatList" class="plan-list"></ul>
       </div>
 
       <div class="card margin-card">
         <p class="eyebrow">Registrar entreno</p>
         <form id="workoutForm" class="stack-form">
           <select id="sportInput" required>
-            <option value="" disabled selected>Deporte</option>
-            <option>Correr</option>
-            <option>Gimnasio</option>
-            <option>Fútbol</option>
-            <option>Ciclismo</option>
-            <option>Natación</option>
-            <option>Otro</option>
+            <option value="" disabled selected>Tipo de entreno</option>
+            <option data-met="8">Crossfit / Gimnasio</option>
+            <option data-met="9.8">Correr</option>
+            <option data-met="7">Fútbol</option>
+            <option data-met="7.5">Ciclismo</option>
+            <option data-met="8">Natación</option>
+            <option data-met="6">Otro</option>
           </select>
-          <div class="row-form">
-            <input type="number" id="minutesInput" placeholder="Minutos" required inputmode="numeric">
-            <input type="number" id="caloriesInput" placeholder="Kcal gastadas" required inputmode="numeric">
+          <input type="number" id="minutesInput" placeholder="Minutos" required inputmode="numeric">
+
+          <p class="eyebrow" style="margin-top:6px;">Ejercicios del entreno (opcional)</p>
+          <div id="exerciseRows" class="exercise-rows"></div>
+          <button type="button" id="addExerciseBtn" class="btn btn-ghost">+ Añadir ejercicio</button>
+
+          <div class="row-form" style="align-items:center; margin-top:6px;">
+            <input type="number" id="caloriesInput" placeholder="Kcal gastadas (o pulsa Calcular)" inputmode="numeric">
+            <button type="button" id="estimateCaloriesBtn" class="btn btn-ghost">Calcular solo</button>
           </div>
+          <span class="hint-text" id="calorieHint"></span>
+
           <label class="file-label">
-            📷 Adjuntar captura (app de entreno, reloj, etc.) — opcional
+            📷 Adjuntar captura (app de entreno, reloj, etc.) — para consultar luego
             <input type="file" id="workoutPhotoInput" accept="image/*" hidden>
           </label>
           <span id="workoutPhotoName" class="file-name"></span>
@@ -153,7 +170,50 @@
       </div>
 
       <div class="card margin-card">
-        <p class="eyebrow">Añadir producto</p>
+        <p class="eyebrow">Menú semanal sugerido</p>
+        <p class="hint-text">Comida: todo en un tupper. Cena: ligera, pescado mejor aquí que a mediodía. 🍌 Plátano de merienda los días que tengas Crossfit.</p>
+        <div id="menuPlan" class="menu-plan"></div>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Diario de comidas de hoy</p>
+        <form id="foodForm" class="stack-form">
+          <select id="foodSelect"></select>
+          <div class="row-form">
+            <input type="number" id="foodGramsInput" placeholder="Gramos" inputmode="numeric" value="100">
+            <button type="submit" class="btn btn-lime">Añadir</button>
+          </div>
+        </form>
+        <button id="toggleCustomFood" class="btn btn-ghost">+ Alimento no listado (a mano)</button>
+        <form id="customFoodForm" class="stack-form hidden">
+          <input type="text" id="customFoodName" placeholder="Nombre del alimento">
+          <div class="row-form">
+            <input type="number" id="customFoodGrams" placeholder="Gramos" inputmode="numeric" value="100">
+            <input type="number" id="customFoodKcal" placeholder="Kcal totales" inputmode="numeric">
+          </div>
+          <div class="row-form">
+            <input type="number" id="customFoodProtein" placeholder="Proteína (g)" inputmode="decimal">
+            <input type="number" id="customFoodCarbs" placeholder="Carbos (g)" inputmode="decimal">
+            <input type="number" id="customFoodFat" placeholder="Grasa (g)" inputmode="decimal">
+          </div>
+          <button type="submit" class="btn btn-lime">Añadir alimento manual</button>
+        </form>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Total de hoy</p>
+        <div class="macro-row">
+          <div class="stat"><span id="totalKcal" class="stat-num">0</span><span class="stat-label">kcal</span></div>
+          <div class="stat"><span id="totalProtein" class="stat-num">0g</span><span class="stat-label">proteína</span></div>
+          <div class="stat"><span id="totalCarbs" class="stat-num">0g</span><span class="stat-label">carbos</span></div>
+          <div class="stat"><span id="totalFat" class="stat-num">0g</span><span class="stat-label">grasa</span></div>
+        </div>
+        <ul id="foodList" class="log-list"></ul>
+        <p class="empty-msg" id="foodEmpty">Aún no has añadido nada hoy.</p>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Añadir producto a la compra</p>
         <form id="itemForm" class="stack-form">
           <input type="text" id="itemName" placeholder="Producto" required>
           <div class="row-form">
