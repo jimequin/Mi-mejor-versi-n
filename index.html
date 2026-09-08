@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cuaderno · Vallecas</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12181B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cuaderno">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Cabecera: foto de progreso -->
+  <header class="header">
+    <div class="header-top">
+      <div>
+        <p class="eyebrow">Cuaderno de entreno</p>
+        <h1 class="title">Puente de Vallecas</h1>
+      </div>
+      <button id="photoBtn" class="photo-btn" title="Subir foto de progreso">
+        <span id="photoPreview" class="photo-preview">＋</span>
+      </button>
+      <input type="file" id="photoInput" accept="image/*" hidden>
+    </div>
+    <div id="photoStrip" class="photo-strip"></div>
+  </header>
+
+  <!-- Contenido de cada pestaña -->
+  <main class="main">
+
+    <!-- NUTRICIÓN -->
+    <section class="tab" id="tab-nutricion">
+      <div class="card margin-card">
+        <p class="eyebrow">Registrar peso</p>
+        <form id="weightForm" class="stack-form">
+          <div class="row-form">
+            <input type="number" step="0.1" id="weightInput" placeholder="kg" required inputmode="decimal">
+            <button type="submit" class="btn btn-lime">Guardar</button>
+          </div>
+          <label class="file-label">
+            📷 Adjuntar captura (báscula, app, etc.) — opcional
+            <input type="file" id="weightPhotoInput" accept="image/*" hidden>
+          </label>
+          <span id="weightPhotoName" class="file-name"></span>
+        </form>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Evolución</p>
+        <canvas id="weightChart" height="160"></canvas>
+        <p class="empty-msg" id="weightEmpty">Aún no hay pesos registrados. Anota el primero arriba.</p>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Tip de hoy</p>
+        <p id="nutritionTip" class="tip-text">—</p>
+        <button id="newTipBtn" class="btn btn-ghost">Otro tip</button>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Historial</p>
+        <ul id="weightList" class="log-list"></ul>
+      </div>
+    </section>
+
+    <!-- ENTRENOS -->
+    <section class="tab hidden" id="tab-entrenos">
+
+      <div class="card margin-card">
+        <p class="eyebrow">Plan semanal</p>
+        <div id="weekPills" class="week-pills"></div>
+        <div id="planDayLabel" class="plan-day-label"></div>
+        <ul id="planExerciseList" class="plan-list"></ul>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">🧘 Movilidad de cadera · 10 min</p>
+        <p class="hint-text">Cualquier día, incluso el de descanso.</p>
+        <ul id="mobilityHipList" class="plan-list"></ul>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">⬇️ Movilidad para sentadilla profunda</p>
+        <p class="hint-text">Ideal martes/jueves, o como calentamiento los días fuertes.</p>
+        <ul id="mobilitySquatList" class="plan-list"></ul>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Registrar entreno</p>
+        <form id="workoutForm" class="stack-form">
+          <select id="sportInput" required>
+            <option value="" disabled selected>Deporte</option>
+            <option>Correr</option>
+            <option>Gimnasio</option>
+            <option>Fútbol</option>
+            <option>Ciclismo</option>
+            <option>Natación</option>
+            <option>Otro</option>
+          </select>
+          <div class="row-form">
+            <input type="number" id="minutesInput" placeholder="Minutos" required inputmode="numeric">
+            <input type="number" id="caloriesInput" placeholder="Kcal gastadas" required inputmode="numeric">
+          </div>
+          <label class="file-label">
+            📷 Adjuntar captura (app de entreno, reloj, etc.) — opcional
+            <input type="file" id="workoutPhotoInput" accept="image/*" hidden>
+          </label>
+          <span id="workoutPhotoName" class="file-name"></span>
+          <button type="submit" class="btn btn-coral">Guardar entreno</button>
+        </form>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Esta semana</p>
+        <div class="stat-row">
+          <div class="stat">
+            <span id="weekCalories" class="stat-num">0</span>
+            <span class="stat-label">kcal gastadas</span>
+          </div>
+          <div class="stat">
+            <span id="weekSessions" class="stat-num">0</span>
+            <span class="stat-label">sesiones</span>
+          </div>
+        </div>
+        <canvas id="workoutChart" height="160"></canvas>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Historial</p>
+        <ul id="workoutList" class="log-list"></ul>
+      </div>
+    </section>
+
+    <!-- LISTA DE COMPRA -->
+    <section class="tab hidden" id="tab-compra">
+      <div class="card margin-card">
+        <p class="eyebrow">Tus supers · Puente de Vallecas</p>
+        <div class="store-pills">
+          <span class="pill">Mercadona</span>
+          <span class="pill">Lidl</span>
+          <span class="pill">Carrefour Express</span>
+        </div>
+        <p class="hint-text">La app no puede leer ofertas en vivo de sus webs. Pídeme en el chat "busca ofertas de esta semana" y las metes aquí a mano.</p>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Añadir producto</p>
+        <form id="itemForm" class="stack-form">
+          <input type="text" id="itemName" placeholder="Producto" required>
+          <div class="row-form">
+            <select id="itemStore">
+              <option>Mercadona</option>
+              <option>Lidl</option>
+              <option>Carrefour Express</option>
+            </select>
+            <input type="text" id="itemNote" placeholder="Oferta / precio (opcional)">
+          </div>
+          <button type="submit" class="btn btn-lime">Añadir a la lista</button>
+        </form>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Lista</p>
+        <ul id="shoppingList" class="shopping-list"></ul>
+        <p class="empty-msg" id="shoppingEmpty">La lista está vacía.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Navegación inferior -->
+  <nav class="tabbar">
+    <button class="tabbtn active" data-tab="nutricion">
+      <span class="tabbtn-num">01</span>
+      <span>Nutrición</span>
+    </button>
+    <button class="tabbtn" data-tab="entrenos">
+      <span class="tabbtn-num">02</span>
+      <span>Entrenos</span>
+    </button>
+    <button class="tabbtn" data-tab="compra">
+      <span class="tabbtn-num">03</span>
+      <span>Compra</span>
+    </button>
+  </nav>
+
+</div>
+
+<!-- Modal para ver una captura en grande -->
+<div id="photoModal" class="photo-modal hidden">
+  <button id="photoModalClose" class="photo-modal-close">✕</button>
+  <img id="photoModalImg" src="" alt="Captura ampliada">
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
+    });
+  }
+</script>
+</body>
+</html>
