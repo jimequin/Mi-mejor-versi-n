@@ -12,7 +12,9 @@ const STORAGE_KEYS = {
   foodLog: 'cuaderno.foodLog',
   folderImports: 'cuaderno.folderImports',
   menuPlan: 'cuaderno.menuPlan',
-  menuPlanNext: 'cuaderno.menuPlanNext'
+  menuPlanNext: 'cuaderno.menuPlanNext',
+  menuHistory: 'cuaderno.menuHistory',
+  goals: 'cuaderno.goals'
 };
 
 function load(key, fallback) {
@@ -33,7 +35,8 @@ let state = {
   weights: load(STORAGE_KEYS.weights, []),
   workouts: load(STORAGE_KEYS.workouts, []),
   shopping: load(STORAGE_KEYS.shopping, []),
-  foodLog: load(STORAGE_KEYS.foodLog, [])
+  foodLog: load(STORAGE_KEYS.foodLog, []),
+  menuHistory: load(STORAGE_KEYS.menuHistory, [])
 };
 
 /* ---------- Helper: comprimir una imagen a base64 ---------- */
@@ -204,15 +207,19 @@ function markFolderFileImported(type, key) {
 // peso tiene un plan B, y músculo/ósea no exigen ningún símbolo detrás.
 function parseWeightOcr(text) {
   const norm = text.toLowerCase().replace(/,/g, '.');
-  const num = '(\\d{1,3}(?:\\.\\d{1,2})?)';
+  const num = '(\\d{1,4}(?:\\.\\d{1,2})?)';
   const result = {};
+  // La grasa, el músculo y la masa ósea ya no exigen ningún símbolo
+  // detrás — según la app/pantalla, cada scale las da en % o en kg.
   const patterns = {
     kg: new RegExp('peso[^0-9]{0,10}' + num),
-    fat: new RegExp('gras[ao](?:\\s*corporal)?[^0-9%]{0,10}' + num + '\\s*%'),
+    fat: new RegExp('gras[ao](?:\\s*corporal)?[^0-9]{0,10}' + num),
     muscle: new RegExp('m[uú]scul[oa][^0-9]{0,10}' + num),
     water: new RegExp('agua[^0-9%]{0,10}' + num + '\\s*%'),
     visceral: new RegExp('visceral[^0-9]{0,10}' + num),
-    bone: new RegExp('[oó]se[a]?[^0-9]{0,10}' + num)
+    bone: new RegExp('[oó]se[a]?[^0-9]{0,10}' + num),
+    protein: new RegExp('prote[ií]na[^0-9]{0,10}' + num),
+    metabolism: new RegExp('metabolismo(?:\\s*basal)?[^0-9]{0,10}' + num)
   };
   for (const [key, re] of Object.entries(patterns)) {
     const m = norm.match(re);
@@ -242,6 +249,34 @@ function parseWorkoutOcr(text) {
   m = norm.match(/(\d{2,4})\s*(?:kcal|cal)/);
   if (m) result.calories = parseInt(m[1], 10);
   return result;
+}
+
+// Muchas fotos de entreno (planes tipo calistenia/crossfit) vienen
+// organizadas en bloques con un título destacado (WARM UP, HACK,
+// EXTRAHACK, DRILLS...) y debajo los ejercicios de ese bloque. Esto
+// intenta separarlos así, en vez de dar todo el texto en un bloque
+// único — es una intuición sobre mayúsculas/palabras clave, revísalo.
+function parseWorkoutBlocks(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const HEADER_HINTS = /warm ?up|hack|extra ?hack|drills|cool ?down|finisher|activation/i;
+  const isHeader = (line) => {
+    if (HEADER_HINTS.test(line)) return true;
+    const letters = line.replace(/[^a-zA-Zá-úñÁ-ÚÑ]/g, '');
+    if (letters.length < 5) return false;
+    const upper = (letters.match(/[A-ZÁ-ÚÑ]/g) || []).length;
+    return (upper / letters.length) > 0.8 && line.length <= 45;
+  };
+  const blocks = [];
+  let current = null;
+  lines.forEach(line => {
+    if (isHeader(line)) {
+      current = { title: line, items: [] };
+      blocks.push(current);
+    } else if (current) {
+      current.items.push(line);
+    }
+  });
+  return blocks;
 }
 
 async function scanFolder(type) {
@@ -299,6 +334,7 @@ async function addFolderReviewItem(type, key, file) {
       <span class="folder-review-name">${file.name}</span>
       <span class="folder-ocr-badge">🔎 Leyendo foto…</span>
       <div class="folder-review-fields"></div>
+      <div class="folder-review-blocks"></div>
       <div class="folder-review-actions">
         <button type="button" class="btn btn-lime btn-sm" data-save>Guardar</button>
         <button type="button" class="btn btn-ghost btn-sm" data-discard>Descartar</button>
@@ -315,12 +351,28 @@ async function addFolderReviewItem(type, key, file) {
 
   const badgeEl = wrap.querySelector('.folder-ocr-badge');
   const fieldsEl = wrap.querySelector('.folder-review-fields');
+  const blocksEl = wrap.querySelector('.folder-review-blocks');
   let ocrData = {};
+  let workoutBlocks = [];
   try {
     const { data } = await Tesseract.recognize(ocrImageUrl, 'eng');
     wrap.querySelector('[data-ocr-text]').textContent = data.text.trim() || '(sin texto detectado)';
     ocrData = type === 'peso' ? parseWeightOcr(data.text || '') : parseWorkoutOcr(data.text || '');
-    badgeEl.textContent = Object.keys(ocrData).some(k => ocrData[k] != null)
+    if (type === 'entreno') {
+      workoutBlocks = parseWorkoutBlocks(data.text || '');
+      if (workoutBlocks.length) {
+        blocksEl.innerHTML = `
+          <p class="menu-field-label">Bloques detectados (revísalos)</p>
+          ${workoutBlocks.map(b => `
+            <div class="workout-block">
+              <p class="workout-block-title">${b.title}</p>
+              <ul class="workout-block-items">${b.items.map(i => `<li>${i}</li>`).join('')}</ul>
+            </div>
+          `).join('')}
+        `;
+      }
+    }
+    badgeEl.textContent = Object.keys(ocrData).some(k => ocrData[k] != null) || workoutBlocks.length
       ? '✓ Datos detectados — revisa antes de guardar'
       : '⚠️ No detecté ningún número, rellénalo a mano';
   } catch (err) {
@@ -332,10 +384,12 @@ async function addFolderReviewItem(type, key, file) {
     fieldsEl.innerHTML = `
       <input type="number" step="0.1" data-field="kg" placeholder="Peso (kg)" value="${ocrData.kg ?? ''}">
       <input type="number" step="0.1" data-field="fat" placeholder="Grasa %" value="${ocrData.fat ?? ''}">
-      <input type="number" step="0.1" data-field="muscle" placeholder="Músculo %" value="${ocrData.muscle ?? ''}">
+      <input type="number" step="0.1" data-field="muscle" placeholder="Músculo (kg o %)" value="${ocrData.muscle ?? ''}">
       <input type="number" step="0.1" data-field="water" placeholder="Agua %" value="${ocrData.water ?? ''}">
       <input type="number" step="0.1" data-field="visceral" placeholder="Visceral" value="${ocrData.visceral ?? ''}">
       <input type="number" step="0.01" data-field="bone" placeholder="Ósea (kg)" value="${ocrData.bone ?? ''}">
+      <input type="number" step="0.1" data-field="protein" placeholder="Proteína %" value="${ocrData.protein ?? ''}">
+      <input type="number" step="1" data-field="metabolism" placeholder="Metabolismo basal (kcal)" value="${ocrData.metabolism ?? ''}">
     `;
     wrap.querySelector('[data-save]').addEventListener('click', () => {
       const get = (f) => {
@@ -348,7 +402,8 @@ async function addFolderReviewItem(type, key, file) {
         id: Date.now(),
         date: new Date(file.lastModified || Date.now()).toISOString(),
         kg, fat: get('fat'), muscle: get('muscle'), water: get('water'),
-        visceral: get('visceral'), bone: get('bone'), photo: dataUrl
+        visceral: get('visceral'), bone: get('bone'),
+        protein: get('protein'), metabolism: get('metabolism'), photo: dataUrl
       });
       state.weights.sort((a, b) => new Date(a.date) - new Date(b.date));
       save(STORAGE_KEYS.weights, state.weights);
@@ -367,10 +422,16 @@ async function addFolderReviewItem(type, key, file) {
       const minutes = parseInt(fieldsEl.querySelector('[data-field="minutes"]').value, 10);
       const calories = parseInt(fieldsEl.querySelector('[data-field="calories"]').value, 10);
       if (!minutes || !calories) { alert('Pon minutos y kcal antes de guardar.'); return; }
+      // Cada línea de cada bloque se guarda como un ejercicio, con el
+      // nombre del bloque delante (ej. "Warm up: Cat-cow Mobility") —
+      // no hay kg porque son series/repes, no peso.
+      const exercises = workoutBlocks.flatMap(b => b.items.map(item => ({
+        name: `${b.title}: ${item}`, kg: null
+      })));
       state.workouts.push({
         id: Date.now(),
         date: new Date(file.lastModified || Date.now()).toISOString(),
-        sport, minutes, calories, exercises: [], photo: dataUrl
+        sport, minutes, calories, exercises, photo: dataUrl
       });
       save(STORAGE_KEYS.workouts, state.workouts);
       renderWorkouts();
@@ -470,6 +531,8 @@ weightForm.addEventListener('submit', (e) => {
     water: parseFloat(document.getElementById('waterInput').value) || null,
     visceral: parseFloat(document.getElementById('visceralInput').value) || null,
     bone: parseFloat(document.getElementById('boneInput').value) || null,
+    protein: parseFloat(document.getElementById('proteinInput').value) || null,
+    metabolism: parseFloat(document.getElementById('metabolismInput').value) || null,
     photo: pendingWeightPhoto
   };
   state.weights.push(entry);
@@ -511,10 +574,12 @@ function renderWeights() {
     const extras = [
       imc ? `IMC ${imc}` : '',
       w.fat != null ? `Grasa ${w.fat}%` : '',
-      w.muscle != null ? `Músculo ${w.muscle}%` : '',
+      w.muscle != null ? `Músculo ${w.muscle}` : '',
       w.water != null ? `Agua ${w.water}%` : '',
       w.visceral != null ? `Visceral ${w.visceral}` : '',
-      w.bone != null ? `Ósea ${w.bone}kg` : ''
+      w.bone != null ? `Ósea ${w.bone}kg` : '',
+      w.protein != null ? `Proteína ${w.protein}%` : '',
+      w.metabolism != null ? `Metab. basal ${w.metabolism}kcal` : ''
     ].filter(Boolean).join(' · ');
     return `
     <li class="weight-entry">
@@ -556,17 +621,19 @@ function renderWeights() {
       }
     }
   });
+
+  if (typeof renderGraficos === 'function' && state.goals) renderGraficos();
 }
 
 /* ---------- PLAN SEMANAL ---------- */
 const WEEKLY_PLAN = [
-  { key: 'lun', label: 'Lunes', types: ['gluteo'] },
+  { key: 'lun', label: 'Lunes', types: [] },
   { key: 'mar', label: 'Martes', types: ['squat'] },
-  { key: 'mie', label: 'Miércoles', types: ['gluteo'] },
+  { key: 'mie', label: 'Miércoles', types: [] },
   { key: 'jue', label: 'Jueves', types: ['squat'] },
-  { key: 'vie', label: 'Viernes', types: [] },
+  { key: 'vie', label: 'Viernes', types: ['gluteo'] },
   { key: 'sab', label: 'Sábado', types: ['gluteo', 'squat'] },
-  { key: 'dom', label: 'Domingo', types: [] }
+  { key: 'dom', label: 'Domingo', types: ['gluteo'] }
 ];
 
 const PLAN_EXERCISES = {
@@ -838,6 +905,8 @@ function renderWorkouts() {
       }
     }
   });
+
+  if (typeof renderGraficos === 'function' && state.goals) renderGraficos();
 }
 
 /* ---------- MENÚ SEMANAL (editable, ingrediente a ingrediente) ----------
@@ -1285,6 +1354,54 @@ document.getElementById('resetMenuBtn').addEventListener('click', () => {
   renderMenuPlan();
 });
 
+/* ---------- HISTORIAL DE MENÚS ----------
+   "Esta semana" y "Semana que viene" son solo el plan vivo, editable.
+   Para quedarte con un registro de lo que de verdad fuiste comiendo
+   semana a semana, guarda aquí una foto fija de "Esta semana" cuando
+   la termines (o cuando quieras).
+------------------------------------------------------------------- */
+document.getElementById('archiveMenuBtn').addEventListener('click', () => {
+  const label = prompt('¿Qué semana es? (ej. "8-14 sept")', '');
+  if (label === null) return;
+  state.menuHistory.unshift({
+    id: Date.now(),
+    archivedAt: new Date().toISOString(),
+    label: label.trim() || new Date().toLocaleDateString('es-ES'),
+    days: JSON.parse(JSON.stringify(menuWeeks.current))
+  });
+  save(STORAGE_KEYS.menuHistory, state.menuHistory);
+  renderMenuHistory();
+  alert('Semana archivada en el historial.');
+});
+
+function deleteMenuHistory(id) {
+  state.menuHistory = state.menuHistory.filter(m => m.id !== id);
+  save(STORAGE_KEYS.menuHistory, state.menuHistory);
+  renderMenuHistory();
+}
+
+function renderMenuHistory() {
+  const listEl = document.getElementById('menuHistoryList');
+  const emptyEl = document.getElementById('menuHistoryEmpty');
+  if (!listEl) return;
+  emptyEl.style.display = state.menuHistory.length ? 'none' : 'block';
+  listEl.innerHTML = state.menuHistory.map(entry => `
+    <details class="menu-history-entry">
+      <summary>
+        <span>${entry.label}</span>
+        <button class="del" onclick="event.preventDefault(); deleteMenuHistory(${entry.id})">✕</button>
+      </summary>
+      ${entry.days.map(d => `
+        <div class="menu-history-day">
+          <b>${d.day}</b>
+          · Comida: ${d.comida.map(i => i.texto).filter(Boolean).join(', ') || '—'}
+          · Cena: ${d.cena.map(i => i.texto).filter(Boolean).join(', ') || '—'}
+        </div>
+      `).join('')}
+    </details>
+  `).join('');
+}
+
 /* ---------- DIARIO DE COMIDAS ---------- */
 // Valores por cada 100g (aprox., fuente: tablas nutricionales estándar)
 const FOOD_DB = [
@@ -1395,6 +1512,8 @@ function renderFoodLog() {
   document.getElementById('totalProtein').textContent = Math.round(totals.p) + 'g';
   document.getElementById('totalCarbs').textContent = Math.round(totals.c) + 'g';
   document.getElementById('totalFat').textContent = Math.round(totals.f) + 'g';
+
+  if (typeof renderGraficos === 'function' && state.goals) renderGraficos();
 }
 
 /* ---------- LISTA DE COMPRA ---------- */
@@ -1573,6 +1692,217 @@ function renderShopping() {
   `).join('');
 }
 
+/* ---------- GRÁFICOS ----------
+   Todo esto se calcula a partir de datos que ya se guardan solos al
+   usar la app: el histórico de mediciones (Nutrición), el histórico
+   de entrenos (Entrenos) y el diario de comidas (Compra). No hace
+   falta ningún registro nuevo — es una forma de ver esos mismos datos
+   a lo largo del tiempo.
+------------------------------------------------------------------- */
+state.goals = load(STORAGE_KEYS.goals, { fat: 28, muscle: 36.5, date: '2026-12-01' });
+
+const goalForm = document.getElementById('goalForm');
+document.getElementById('goalFatInput').value = state.goals.fat;
+document.getElementById('goalMuscleInput').value = state.goals.muscle;
+document.getElementById('goalDateInput').value = state.goals.date;
+
+goalForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  state.goals = {
+    fat: parseFloat(document.getElementById('goalFatInput').value) || state.goals.fat,
+    muscle: parseFloat(document.getElementById('goalMuscleInput').value) || state.goals.muscle,
+    date: document.getElementById('goalDateInput').value || state.goals.date
+  };
+  save(STORAGE_KEYS.goals, state.goals);
+  renderGoalStatus();
+  renderFatChart();
+  renderMuscleChart();
+});
+
+function lastWeightWith(field) {
+  const withField = state.weights.filter(w => w[field] != null);
+  return withField.length ? withField[withField.length - 1] : null;
+}
+
+function renderGoalStatus() {
+  const statusEl = document.getElementById('goalStatus');
+  const lastFat = lastWeightWith('fat');
+  const lastMuscle = lastWeightWith('muscle');
+  const daysLeft = Math.ceil((new Date(state.goals.date) - new Date()) / 86400000);
+
+  const fatRow = lastFat
+    ? `<div class="goal-row"><span class="goal-label">Grasa actual → objetivo ${state.goals.fat}%</span>
+        <span class="goal-value ${lastFat.fat <= state.goals.fat ? 'ok' : 'pending'}">${lastFat.fat}% ${lastFat.fat <= state.goals.fat ? '✓' : `(faltan ${(lastFat.fat - state.goals.fat).toFixed(1)} pts)`}</span></div>`
+    : `<div class="goal-row"><span class="goal-label">Grasa</span><span class="goal-value">sin mediciones</span></div>`;
+
+  const muscleRow = lastMuscle
+    ? `<div class="goal-row"><span class="goal-label">Músculo actual → objetivo ${state.goals.muscle} kg</span>
+        <span class="goal-value ${lastMuscle.muscle >= state.goals.muscle ? 'ok' : 'pending'}">${lastMuscle.muscle} ${lastMuscle.muscle >= state.goals.muscle ? '✓' : `(faltan ${(state.goals.muscle - lastMuscle.muscle).toFixed(1)} kg)`}</span></div>`
+    : `<div class="goal-row"><span class="goal-label">Músculo</span><span class="goal-value">sin mediciones</span></div>`;
+
+  const daysMsg = daysLeft > 0 ? `${daysLeft} días hasta el objetivo` : 'Fecha objetivo ya pasada';
+  statusEl.innerHTML = fatRow + muscleRow + `<div class="goal-days-left">⏳ ${daysMsg}</div>`;
+}
+
+function renderFatChart() {
+  const withFat = state.weights.filter(w => w.fat != null);
+  const ctx = document.getElementById('fatChart');
+  document.getElementById('graficosWeightEmpty').style.display = state.weights.length ? 'none' : 'block';
+  if (fatChartInstance) fatChartInstance.destroy();
+  fatChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: withFat.map(w => new Date(w.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })),
+      datasets: [
+        { label: 'Grasa %', data: withFat.map(w => w.fat), borderColor: '#FF6B4A', backgroundColor: 'rgba(255,107,74,0.12)', tension: 0.3, fill: true, pointRadius: 3 },
+        { label: 'Objetivo', data: withFat.map(() => state.goals.fat), borderColor: '#8A9298', borderDash: [6, 4], pointRadius: 0, fill: false }
+      ]
+    },
+    options: {
+      plugins: { legend: { display: true, labels: { color: '#8A9298', font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { color: '#2A3338' } },
+        y: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { color: '#2A3338' } }
+      }
+    }
+  });
+}
+
+function renderMuscleChart() {
+  const withMuscle = state.weights.filter(w => w.muscle != null);
+  const ctx = document.getElementById('muscleChart');
+  if (muscleChartInstance) muscleChartInstance.destroy();
+  muscleChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: withMuscle.map(w => new Date(w.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })),
+      datasets: [
+        { label: 'Músculo', data: withMuscle.map(w => w.muscle), borderColor: '#C6F135', backgroundColor: 'rgba(198,241,53,0.12)', tension: 0.3, fill: true, pointRadius: 3 },
+        { label: 'Objetivo', data: withMuscle.map(() => state.goals.muscle), borderColor: '#8A9298', borderDash: [6, 4], pointRadius: 0, fill: false }
+      ]
+    },
+    options: {
+      plugins: { legend: { display: true, labels: { color: '#8A9298', font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { color: '#2A3338' } },
+        y: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { color: '#2A3338' } }
+      }
+    }
+  });
+}
+
+// Agrupa entrenos por semana (lunes de esa semana como clave), en todo
+// el histórico — no solo la semana actual como el gráfico de Entrenos.
+function aggregateWorkoutsByWeek() {
+  const map = {};
+  state.workouts.forEach(w => {
+    const key = startOfWeek(new Date(w.date)).toISOString().slice(0, 10);
+    if (!map[key]) map[key] = { kcal: 0, sessions: 0 };
+    map[key].kcal += w.calories;
+    map[key].sessions += 1;
+  });
+  const weeks = Object.keys(map).sort();
+  return {
+    labels: weeks.map(k => new Date(k).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })),
+    kcal: weeks.map(k => map[k].kcal),
+    sessions: weeks.map(k => map[k].sessions)
+  };
+}
+
+function renderWorkoutHistoryCharts() {
+  const { labels, kcal, sessions } = aggregateWorkoutsByWeek();
+  document.getElementById('graficosWorkoutEmpty').style.display = state.workouts.length ? 'none' : 'block';
+
+  const ctx1 = document.getElementById('workoutHistoryChart');
+  if (workoutHistoryChartInstance) workoutHistoryChartInstance.destroy();
+  workoutHistoryChartInstance = new Chart(ctx1, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: kcal, backgroundColor: '#FF6B4A', borderRadius: 4 }] },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { color: '#2A3338' } }
+      }
+    }
+  });
+
+  const ctx2 = document.getElementById('sessionsHistoryChart');
+  if (sessionsHistoryChartInstance) sessionsHistoryChartInstance.destroy();
+  sessionsHistoryChartInstance = new Chart(ctx2, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: sessions, backgroundColor: '#C6F135', borderRadius: 4 }] },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#8A9298', font: { size: 10 }, stepSize: 1 }, grid: { color: '#2A3338' } }
+      }
+    }
+  });
+}
+
+// Agrupa el diario de comidas por día (todo el histórico), y se queda
+// con los últimos N días que tengan algo anotado.
+function aggregateFoodLogByDay(maxDays = 30) {
+  const map = {};
+  (state.foodLog || []).forEach(e => {
+    const key = e.date.slice(0, 10);
+    if (!map[key]) map[key] = { kcal: 0, p: 0 };
+    map[key].kcal += e.kcal;
+    map[key].p += e.p;
+  });
+  const days = Object.keys(map).sort().slice(-maxDays);
+  return {
+    labels: days.map(k => new Date(k).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })),
+    kcal: days.map(k => Math.round(map[k].kcal)),
+    protein: days.map(k => Math.round(map[k].p))
+  };
+}
+
+function renderFoodHistoryCharts() {
+  const { labels, kcal, protein } = aggregateFoodLogByDay();
+  document.getElementById('graficosFoodEmpty').style.display = (state.foodLog || []).length ? 'none' : 'block';
+
+  const ctx1 = document.getElementById('calorieIntakeChart');
+  if (calorieIntakeChartInstance) calorieIntakeChartInstance.destroy();
+  calorieIntakeChartInstance = new Chart(ctx1, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: kcal, backgroundColor: '#FF6B4A', borderRadius: 4 }] },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { color: '#2A3338' } }
+      }
+    }
+  });
+
+  const ctx2 = document.getElementById('proteinIntakeChart');
+  if (proteinIntakeChartInstance) proteinIntakeChartInstance.destroy();
+  proteinIntakeChartInstance = new Chart(ctx2, {
+    type: 'line',
+    data: { labels, datasets: [{ data: protein, borderColor: '#C6F135', backgroundColor: 'rgba(198,241,53,0.12)', tension: 0.3, fill: true, pointRadius: 3 }] },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { color: '#2A3338' } }
+      }
+    }
+  });
+}
+
+let fatChartInstance, muscleChartInstance, workoutHistoryChartInstance, sessionsHistoryChartInstance, calorieIntakeChartInstance, proteinIntakeChartInstance;
+
+function renderGraficos() {
+  renderGoalStatus();
+  renderFatChart();
+  renderMuscleChart();
+  renderWorkoutHistoryCharts();
+  renderFoodHistoryCharts();
+}
+
 /* ---------- INICIO ---------- */
 renderPhotos();
 renderWeights();
@@ -1581,7 +1911,9 @@ renderShopping();
 renderPlan();
 renderMobility();
 renderMenuPlan();
+renderMenuHistory();
 renderFoodLog();
+renderGraficos();
 showRandomTip();
 setupFolderConnector('peso', 'connectWeightFolderBtn', 'scanWeightFolderBtn', 'weightFolderStatus');
 setupFolderConnector('entreno', 'connectWorkoutFolderBtn', 'scanWorkoutFolderBtn', 'workoutFolderStatus');

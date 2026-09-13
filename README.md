@@ -5,9 +5,10 @@ App web sencilla (HTML + CSS + JS, sin frameworks ni instalación) para llevar:
 - 📸 Fotos de progreso (botón "+" arriba) + captura opcional en cada registro de peso/entreno
 - 📁 **Importar desde carpetas del móvil** (solo Android + Chrome): conecta la carpeta donde guardas las fotos de la báscula y la del entreno, y la app las detecta e intenta leer los números por ti (OCR)
 - 🥗 **Nutrición**: peso y composición corporal completa (grasa, músculo, agua, grasa visceral, masa ósea), IMC automático, gráfico de evolución y tips
-- 🏋️ **Entrenos**: plan semanal reducido (glúteo 3x/semana con sábado incluido, movilidad de sentadilla 3x/semana, movilidad de cadera todos los días), registro de entrenos con ejercicios y kilos, cálculo automático de calorías según tu peso
-- 📋 **Menús**: menú semanal editable (comida en tupper único, cena ligera, pescado solo en la cena, pasta máximo un día), con gramos ajustables por plato — lo editas tú directamente en la app, sin tener que pedírmelo cada semana
-- 🛒 **Compra**: diario de comidas con calorías y macros, lista de la compra por súper
+- 🏋️ **Entrenos**: plan semanal (glúteo duro viernes/sábado/domingo, movilidad de sentadilla martes/jueves, movilidad de cadera todos los días), registro de entrenos con ejercicios y kilos, cálculo automático de calorías según tu peso
+- 📋 **Menús**: menú semanal editable, ingrediente a ingrediente, con kcal/macros estimadas por día; "Esta semana" y "Semana que viene" por separado, e historial de semanas archivadas
+- 📈 **Gráficos**: objetivo de grasa/músculo con fecha límite, y evolución de grasa corporal, músculo, kcal/sesiones de entreno por semana, y kcal/proteína consumidas — todo calculado a partir del histórico que ya vas guardando
+- 🛒 **Compra**: diario de comidas con calorías y macros, lista de la compra generada automáticamente desde el menú (cantidades, súper y precio estimado)
 
 Todos los datos se guardan en tu propio navegador (`localStorage`). No hay servidor,
 así que si cambias de navegador o de móvil, no se sincroniza — es una limitación

@@ -45,13 +45,17 @@
           <input type="number" step="0.1" id="weightInput" placeholder="Peso (kg)" required inputmode="decimal">
           <div class="row-form">
             <input type="number" step="0.1" id="fatInput" placeholder="Grasa %" inputmode="decimal">
-            <input type="number" step="0.1" id="muscleInput" placeholder="Músculo %" inputmode="decimal">
+            <input type="number" step="0.1" id="muscleInput" placeholder="Músculo (kg o %)" inputmode="decimal">
           </div>
           <div class="row-form">
             <input type="number" step="0.1" id="waterInput" placeholder="Agua %" inputmode="decimal">
             <input type="number" step="0.1" id="visceralInput" placeholder="Grasa visceral" inputmode="decimal">
           </div>
-          <input type="number" step="0.01" id="boneInput" placeholder="Masa ósea (kg)" inputmode="decimal">
+          <div class="row-form">
+            <input type="number" step="0.01" id="boneInput" placeholder="Masa ósea (kg)" inputmode="decimal">
+            <input type="number" step="0.1" id="proteinInput" placeholder="Proteína %" inputmode="decimal">
+          </div>
+          <input type="number" step="1" id="metabolismInput" placeholder="Metabolismo basal (kcal)" inputmode="numeric">
           <label class="file-label">
             📷 Adjuntar captura de la báscula/app — opcional (solo para consultar luego, no se lee sola)
             <input type="file" id="weightPhotoInput" accept="image/*" hidden>
@@ -199,6 +203,62 @@
         <div id="menuPlan" class="menu-plan"></div>
         <button id="resetMenuBtn" class="btn btn-ghost">↺ Restaurar plantilla por defecto</button>
       </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">📦 Historial de menús</p>
+        <p class="hint-text">Cuando termines "Esta semana", archívala aquí para quedarte con un registro de lo que fuiste comiendo. No se sobrescribe nada — cada semana archivada se queda guardada.</p>
+        <button id="archiveMenuBtn" class="btn btn-lime">Archivar "Esta semana" en el historial</button>
+        <div id="menuHistoryList" class="menu-history-list"></div>
+        <p class="empty-msg" id="menuHistoryEmpty">Aún no has archivado ninguna semana.</p>
+      </div>
+    </section>
+
+    <!-- GRÁFICOS -->
+    <section class="tab hidden" id="tab-graficos">
+      <div class="card margin-card">
+        <p class="eyebrow">🎯 Tu objetivo</p>
+        <p class="hint-text">Hasta el 1 de diciembre. Se compara con tu última medición registrada en Nutrición.</p>
+        <form id="goalForm" class="stack-form">
+          <div class="row-form">
+            <input type="number" step="0.1" id="goalFatInput" placeholder="Grasa objetivo %">
+            <input type="number" step="0.1" id="goalMuscleInput" placeholder="Músculo objetivo (kg)">
+          </div>
+          <input type="date" id="goalDateInput">
+          <button type="submit" class="btn btn-lime">Guardar objetivo</button>
+        </form>
+        <div id="goalStatus" class="goal-status"></div>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Composición corporal en el tiempo</p>
+        <p class="hint-text">Grasa % y músculo, con la línea de tu objetivo marcada.</p>
+        <canvas id="fatChart" height="160"></canvas>
+        <canvas id="muscleChart" height="160" style="margin-top:16px;"></canvas>
+        <p class="empty-msg" id="graficosWeightEmpty">Aún no hay mediciones con grasa/músculo registradas.</p>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Progreso de entreno · kcal por semana</p>
+        <canvas id="workoutHistoryChart" height="160"></canvas>
+        <p class="empty-msg" id="graficosWorkoutEmpty">Aún no hay entrenos registrados.</p>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Sesiones de entreno por semana</p>
+        <canvas id="sessionsHistoryChart" height="160"></canvas>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Consumo calórico diario</p>
+        <p class="hint-text">Últimos días con algo anotado en el Diario de comidas.</p>
+        <canvas id="calorieIntakeChart" height="160"></canvas>
+        <p class="empty-msg" id="graficosFoodEmpty">Aún no has anotado comidas en el diario.</p>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Proteína diaria consumida</p>
+        <canvas id="proteinIntakeChart" height="160"></canvas>
+      </div>
     </section>
 
     <!-- LISTA DE COMPRA -->
@@ -296,8 +356,12 @@
       <span class="tabbtn-num">03</span>
       <span>Menús</span>
     </button>
-    <button class="tabbtn" data-tab="compra">
+    <button class="tabbtn" data-tab="graficos">
       <span class="tabbtn-num">04</span>
+      <span>Gráficos</span>
+    </button>
+    <button class="tabbtn" data-tab="compra">
+      <span class="tabbtn-num">05</span>
       <span>Compra</span>
     </button>
   </nav>

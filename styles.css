@@ -460,6 +460,39 @@ input:focus, select:focus, button:focus{
   line-height: 1.4;
 }
 #resetMenuBtn{ margin-top: 10px; }
+#archiveMenuBtn{ margin-top: 4px; }
+.menu-history-list{
+  display:flex;
+  flex-direction:column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.menu-history-entry{
+  border: 1px solid var(--card-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.menu-history-entry summary{
+  cursor: pointer;
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+}
+.menu-history-entry summary .del{
+  background:none; border:none; color: var(--muted); cursor:pointer; font-size: 15px;
+}
+.menu-history-day{
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  padding: 6px 0;
+  border-top: 1px dashed var(--card-line);
+}
+.menu-history-day:first-of-type{ margin-top: 8px; }
+.menu-history-day b{ color: var(--text); font-family: var(--font-mono); font-size: 11px; }
 
 /* DIARIO DE COMIDAS */
 .macro-row{
@@ -555,6 +588,10 @@ input:focus, select:focus, button:focus{
 @media (max-width: 360px){
   .title{ font-size: 19px; }
 }
+@media (max-width: 420px){
+  .tabbtn{ font-size: 10px; }
+  .tabbtn-num{ display: none; }
+}
 
 /* CARPETAS DE FOTOS DEL MÓVIL */
 .folder-scan-status{ margin-top: 8px; }
@@ -624,6 +661,28 @@ input:focus, select:focus, button:focus{
   color: var(--muted);
 }
 .folder-review-item summary{ cursor: pointer; }
+.folder-review-blocks{ margin-top: 4px; }
+.workout-block{
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.workout-block-title{
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--coral);
+  margin: 0 0 4px;
+}
+.workout-block-items{
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
 .folder-review-item pre{
   white-space: pre-wrap;
   word-break: break-word;
@@ -633,6 +692,32 @@ input:focus, select:focus, button:focus{
   border-radius: 6px;
   padding: 6px;
   margin: 4px 0 0;
+}
+
+/* GRÁFICOS · OBJETIVO */
+.goal-status{
+  margin-top: 12px;
+  display:flex;
+  flex-direction:column;
+  gap: 8px;
+}
+.goal-row{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  font-size: 13.5px;
+  border-bottom: 1px dashed var(--card-line);
+  padding-bottom: 8px;
+}
+.goal-row .goal-label{ color: var(--muted); }
+.goal-row .goal-value{ font-family: var(--font-mono); font-weight: 700; }
+.goal-row .goal-value.ok{ color: var(--lime); }
+.goal-row .goal-value.pending{ color: var(--coral); }
+.goal-days-left{
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
 }
 
 /* MODAL FOTO */
