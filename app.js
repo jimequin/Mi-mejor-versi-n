@@ -849,15 +849,97 @@ function renderWorkouts() {
    único, el pescado va solo en la cena, y como mucho un día de pasta.
 ------------------------------------------------------------------- */
 
-// Plantilla genérica de repuesto, por si quieres "resetear" el menú
+// Plantilla genérica de repuesto (dieta orientada a perder grasa: alta
+// en proteína, carbohidratos controlados). Reglas fijas que pediste:
+// - Nunca quinoa combinada con legumbres (muchas kcal/carbos juntas).
+// - Lunes = jueves y martes = miércoles, siempre el mismo plato (cocina
+//   de una vez, comes dos días de lo mismo) — así arranca cualquier
+//   semana nueva, y si editas uno el emparejado se copia solo.
+// - Plátano pre-entreno de lunes a jueves.
 const DEFAULT_MENU_TEMPLATE = [
-  { day: 'Lunes', comida: [{ texto: 'Arroz integral con pollo a la plancha y verduras salteadas', cantidad: '350 g' }], cena: [{ texto: 'Crema de calabacín con huevo duro', cantidad: '280 g' }] },
-  { day: 'Martes', comida: [{ texto: 'Lentejas estofadas con verduras y pollo', cantidad: '350 g' }], cena: [{ texto: 'Merluza al horno con verduras', cantidad: '280 g' }] },
-  { day: 'Miércoles', comida: [{ texto: 'Pasta integral con pollo, tomate y aceitunas', cantidad: '350 g' }], cena: [{ texto: 'Tortilla francesa con champiñones y ensalada', cantidad: '280 g' }] },
-  { day: 'Jueves', comida: [{ texto: 'Quinoa con garbanzos, espinacas y huevo', cantidad: '350 g' }], cena: [{ texto: 'Salmón al vapor con verduras', cantidad: '280 g' }] },
-  { day: 'Viernes', comida: [{ texto: 'Arroz con verduras y pollo', cantidad: '350 g' }], cena: [{ texto: 'Revuelto de verduras con pollo', cantidad: '280 g' }] },
-  { day: 'Sábado', comida: [{ texto: 'Pollo al curry con arroz basmati y verduras', cantidad: '350 g' }], cena: [{ texto: 'Ensalada de queso fresco, tomate y nueces', cantidad: '280 g' }] },
-  { day: 'Domingo', comida: [{ texto: 'Garbanzos con verdura (puchero de toda la vida)', cantidad: '350 g' }], cena: [{ texto: 'Pescado blanco a la plancha con ensalada', cantidad: '280 g' }] }
+  {
+    day: 'Lunes',
+    comida: [
+      { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
+      { texto: 'Verduras salteadas (calabacín, pimiento, cebolla)', cantidad: '200 g' },
+      { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
+    ],
+    cena: [
+      { texto: 'Salmón al horno', cantidad: '200 g' },
+      { texto: 'Ensalada verde', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Martes',
+    comida: [
+      { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
+      { texto: 'Garbanzos', cantidad: '150 g' },
+      { texto: 'Ensalada verde', cantidad: '100 g' },
+      { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
+    ],
+    cena: [
+      { texto: 'Huevos revueltos', cantidad: '3 uds' },
+      { texto: 'Champiñones salteados', cantidad: '100 g' }
+    ]
+  },
+  {
+    day: 'Miércoles',
+    comida: [
+      { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
+      { texto: 'Garbanzos', cantidad: '150 g' },
+      { texto: 'Ensalada verde', cantidad: '100 g' },
+      { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
+    ],
+    cena: [
+      { texto: 'Huevos revueltos', cantidad: '3 uds' },
+      { texto: 'Champiñones salteados', cantidad: '100 g' }
+    ]
+  },
+  {
+    day: 'Jueves',
+    comida: [
+      { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
+      { texto: 'Verduras salteadas (calabacín, pimiento, cebolla)', cantidad: '200 g' },
+      { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
+    ],
+    cena: [
+      { texto: 'Salmón al horno', cantidad: '200 g' },
+      { texto: 'Ensalada verde', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Viernes',
+    comida: [
+      { texto: 'Pollo al curry con arroz basmati', cantidad: '250 g' },
+      { texto: 'Brócoli y calabacín al vapor', cantidad: '150 g' }
+    ],
+    cena: [
+      { texto: 'Merluza al horno', cantidad: '200 g' },
+      { texto: 'Brócoli al vapor', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Sábado',
+    comida: [
+      { texto: 'Hamburguesa casera (sin pan)', cantidad: '200 g' },
+      { texto: 'Boniato asado', cantidad: '150 g' },
+      { texto: 'Ensalada verde', cantidad: '100 g' }
+    ],
+    cena: [
+      { texto: 'Pescado blanco a la plancha', cantidad: '200 g' },
+      { texto: 'Pimiento y calabacín salteados', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Domingo',
+    comida: [
+      { texto: 'Pisto con pollo', cantidad: '300 g' }
+    ],
+    cena: [
+      { texto: 'Tortilla de claras con espinacas', cantidad: '3 uds' },
+      { texto: 'Ensalada verde', cantidad: '100 g' }
+    ]
+  }
 ];
 
 // Tu menú real de esta semana. Sin espárragos (caros y no tienes),
@@ -1008,7 +1090,10 @@ const NUTRITION_DB = [
   { keys: ['pescado blanco'], kcal: 90, p: 18, c: 0, f: 1.2 },
   { keys: ['quinoa'], kcal: 120, p: 4.4, c: 21, f: 1.9 },
   { keys: ['espinaca'], kcal: 23, p: 2.9, c: 3.6, f: 0.4 },
-  { keys: ['brocoli', 'brócoli'], kcal: 34, p: 2.8, c: 7, f: 0.4 }
+  { keys: ['brocoli', 'brócoli'], kcal: 34, p: 2.8, c: 7, f: 0.4 },
+  { keys: ['platano', 'plátano'], kcal: 89, p: 1.1, c: 23, f: 0.3, gramsPerUnit: 120 },
+  { keys: ['boniato', 'batata'], kcal: 90, p: 2, c: 20.5, f: 0.1 },
+  { keys: ['clara'], kcal: 52, p: 11, c: 0.7, f: 0.2 }
 ];
 
 function normalizeText(str) {
@@ -1085,6 +1170,23 @@ function renderDayTotals(d) {
   `;
 }
 
+// Días que siempre quieres iguales (cocina de una vez, comes dos días
+// el mismo plato): lunes = jueves, martes = miércoles. Se aplica a
+// cualquier semana MENOS "esta semana" — a partir de la que viene, ya
+// para siempre, según pediste. Si editas uno, el emparejado se copia solo.
+const MENU_DAY_LINKS = { Lunes: 'Jueves', Jueves: 'Lunes', Martes: 'Miércoles', Miércoles: 'Martes' };
+
+function mirrorLinkedDay(weekId, dayIdx, mealKey) {
+  if (weekId === 'current') return;
+  const plan = menuWeeks[weekId];
+  const dayName = plan[dayIdx].day;
+  const linkedName = MENU_DAY_LINKS[dayName];
+  if (!linkedName) return;
+  const linkedDay = plan.find(d => d.day === linkedName);
+  if (!linkedDay) return;
+  linkedDay[mealKey] = JSON.parse(JSON.stringify(plan[dayIdx][mealKey]));
+}
+
 function renderMenuPlan() {
   document.querySelectorAll('#menuWeekPills .week-pill').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.week === activeMenuWeek);
@@ -1104,13 +1206,16 @@ function renderMenuPlan() {
     input.addEventListener('change', () => {
       const { day, meal, item, field } = input.dataset;
       getMenuPlanState()[day][meal][item][field] = input.value;
+      mirrorLinkedDay(activeMenuWeek, day, meal);
       saveMenuPlanState();
+      renderMenuPlan(); // vuelve a calcular kcal/macros con el valor nuevo
     });
   });
   document.querySelectorAll('[data-add-ingredient]').forEach(btn => {
     btn.addEventListener('click', () => {
       const { day, meal } = btn.dataset;
       getMenuPlanState()[day][meal].push({ texto: '', cantidad: '' });
+      mirrorLinkedDay(activeMenuWeek, day, meal);
       saveMenuPlanState();
       renderMenuPlan();
     });
@@ -1121,6 +1226,7 @@ function renderMenuPlan() {
       const meals = getMenuPlanState()[day][meal];
       meals.splice(item, 1);
       if (!meals.length) meals.push({ texto: '', cantidad: '' });
+      mirrorLinkedDay(activeMenuWeek, day, meal);
       saveMenuPlanState();
       renderMenuPlan();
     });
@@ -1290,7 +1396,9 @@ const PRECIO_DB = [
   { keys: ['pescado blanco'], label: 'Pescado blanco', eur100g: 1.2, store: 'Mercadona' },
   { keys: ['quinoa'], label: 'Quinoa', eur100g: 0.7, store: 'Carrefour Express' },
   { keys: ['espinaca'], label: 'Espinacas', eur100g: 0.3, store: 'Mercadona' },
-  { keys: ['brocoli', 'brócoli'], label: 'Brócoli', eur100g: 0.3, store: 'Mercadona' }
+  { keys: ['brocoli', 'brócoli'], label: 'Brócoli', eur100g: 0.3, store: 'Mercadona' },
+  { keys: ['platano', 'plátano'], label: 'Plátano', eur100g: 0.18, store: 'Mercadona' },
+  { keys: ['boniato', 'batata'], label: 'Boniato', eur100g: 0.2, store: 'Mercadona' }
 ];
 
 function matchAllPrices(texto) {
