@@ -17,7 +17,8 @@ const STORAGE_KEYS = {
   goals: 'cuaderno.goals',
   planSeries: 'cuaderno.planSeries',
   planCompletions: 'cuaderno.planCompletions',
-  completionCounted: 'cuaderno.completionCounted'
+  completionCounted: 'cuaderno.completionCounted',
+  autoLoggedKeys: 'cuaderno.autoLoggedKeys'
 };
 
 function load(key, fallback) {
@@ -82,6 +83,14 @@ document.querySelectorAll('.tabbtn').forEach(btn => {
     document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+
+    // Un gráfico creado mientras su pestaña estaba oculta se queda sin
+    // tamaño (Chart.js mide 0x0) — al cambiar de pestaña, se le pide
+    // que recalcule su tamaño ahora que ya se ve.
+    [weightChart, workoutChart, fatChartInstance, muscleChartInstance,
+      workoutHistoryChartInstance, sessionsHistoryChartInstance,
+      calorieIntakeChartInstance, proteinIntakeChartInstance, balanceChartInstance]
+      .forEach(c => { if (c) c.resize(); });
   });
 });
 
@@ -639,10 +648,43 @@ const WEEKLY_PLAN = [
   { key: 'dom', label: 'Domingo', types: ['gluteo'] }
 ];
 
-// El glúteo es un circuito de fuerza: se hace en series (rondas
-// completas). Al marcar el último ejercicio, si aún no llegaste a las
-// series objetivo, se desmarca todo para la siguiente ronda y suma 1.
-const SERIES_TARGET = { gluteo: 4 };
+// Todos los bloques (glúteo, movilidad de sentadilla, movilidad de
+// cadera) funcionan en series/rondas: al marcar el último ejercicio,
+// si aún no llegaste al objetivo, se desmarca todo para la siguiente
+// ronda y suma 1. El de glúteo son 4 (pediste 4, no 3); movilidad son
+// 2 rondas por defecto — dímelo si quieres otro número.
+const SERIES_TARGET = { gluteo: 4, squat: 2, hip: 2 };
+
+// Al completar el objetivo de series de un bloque, se apunta solo un
+// entreno con las kcal estimadas (con tu peso/metabolismo real si lo
+// tienes), para que cuente en "Esta semana" y en los gráficos — antes
+// marcar el plan como hecho no tenía ningún efecto en las calorías.
+const AUTO_LOG_MET = { gluteo: 5, squat: 3, hip: 2.5 };
+const AUTO_LOG_MINUTES = { gluteo: 30, squat: 12, hip: 10 };
+const AUTO_LOG_SPORT = { gluteo: 'Glúteo (plan semanal)', squat: 'Movilidad sentadilla (plan)', hip: 'Movilidad cadera (plan)' };
+let autoLoggedKeys = load(STORAGE_KEYS.autoLoggedKeys, []);
+
+function autoLogPlanWorkout(listKey, typeKey) {
+  if (autoLoggedKeys.includes(listKey)) return; // ya se apuntó por esta ronda de hoy
+  const kg = getLastWeight();
+  const met = AUTO_LOG_MET[typeKey] || 4;
+  const minutes = AUTO_LOG_MINUTES[typeKey] || 15;
+  const hours = minutes / 60;
+  const bmr = estimateBMR(kg);
+  const calories = bmr
+    ? Math.round((bmr / 24) * hours + (met - 1) * kg * hours)
+    : Math.round(met * kg * hours);
+  state.workouts.push({
+    id: Date.now(),
+    date: new Date().toISOString(),
+    sport: AUTO_LOG_SPORT[typeKey] || 'Plan semanal',
+    minutes, calories, exercises: [], photo: null
+  });
+  save(STORAGE_KEYS.workouts, state.workouts);
+  autoLoggedKeys.push(listKey);
+  save(STORAGE_KEYS.autoLoggedKeys, autoLoggedKeys);
+  renderWorkouts();
+}
 
 const PLAN_EXERCISES = {
   gluteo: {
@@ -701,31 +743,37 @@ function todayKey() {
 
 let selectedPlanDay = (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1); // índice 0=lunes
 
-// mode: undefined (checklist normal, sin contador) | 'series' (glúteo:
-// al completar todos los ejercicios suma 1 serie y reinicia, hasta el
-// objetivo) | 'completion' (movilidad: al completar todos los
-// ejercicios suma 1 al contador de "veces hecho", una vez por día).
-function toggleCheck(listKey, itemIdx, totalItems, mode, typeKey) {
+// Todos los checklists del plan funcionan igual: al marcar el último
+// ejercicio de una ronda, si no has llegado al objetivo de series, se
+// desmarca todo para la ronda siguiente y suma 1. Al llegar al
+// objetivo: se queda marcado, suma 1 al contador de por vida, y se
+// apunta un entreno automático con las kcal estimadas (una sola vez
+// por día, aunque vuelvas a tocar los checks después).
+function toggleCheck(listKey, itemIdx, totalItems, typeKey) {
   if (!planChecks[listKey]) planChecks[listKey] = [];
   const pos = planChecks[listKey].indexOf(itemIdx);
   if (pos === -1) planChecks[listKey].push(itemIdx);
   else planChecks[listKey].splice(pos, 1);
 
   const allChecked = totalItems && planChecks[listKey].length === totalItems;
-  if (allChecked && mode === 'series') {
+  if (allChecked) {
     const target = SERIES_TARGET[typeKey] || 4;
     const done = planSeries[listKey] || 0;
     if (done < target) {
       planSeries[listKey] = done + 1;
       save(STORAGE_KEYS.planSeries, planSeries);
-      if (planSeries[listKey] < target) planChecks[listKey] = []; // ronda siguiente
-    }
-  } else if (allChecked && mode === 'completion') {
-    if (!completionCounted.includes(listKey)) {
-      completionCounted.push(listKey);
-      planCompletions[typeKey] = (planCompletions[typeKey] || 0) + 1;
-      save(STORAGE_KEYS.completionCounted, completionCounted);
-      save(STORAGE_KEYS.planCompletions, planCompletions);
+      if (planSeries[listKey] < target) {
+        planChecks[listKey] = []; // ronda siguiente
+      } else {
+        // objetivo de series alcanzado hoy con este listKey
+        if (!completionCounted.includes(listKey)) {
+          completionCounted.push(listKey);
+          planCompletions[typeKey] = (planCompletions[typeKey] || 0) + 1;
+          save(STORAGE_KEYS.completionCounted, completionCounted);
+          save(STORAGE_KEYS.planCompletions, planCompletions);
+        }
+        autoLogPlanWorkout(listKey, typeKey);
+      }
     }
   }
 
@@ -734,12 +782,12 @@ function toggleCheck(listKey, itemIdx, totalItems, mode, typeKey) {
   renderMobility();
 }
 
-function renderCheckList(container, items, listKey, mode, typeKey) {
+function renderCheckList(container, items, listKey, typeKey) {
   const checked = planChecks[listKey] || [];
   container.innerHTML = items.map((text, idx) => `
     <li class="${checked.includes(idx) ? 'plan-checked' : ''}">
       <button class="plan-check ${checked.includes(idx) ? 'checked' : ''}"
-        onclick="toggleCheck('${listKey}', ${idx}, ${items.length}, '${mode}', '${typeKey}')"></button>
+        onclick="toggleCheck('${listKey}', ${idx}, ${items.length}, '${typeKey}')"></button>
       <span class="plan-text">${text}</span>
     </li>
   `).join('');
@@ -775,17 +823,15 @@ function renderPlan() {
     const plan = PLAN_EXERCISES[t];
     const listKey = 'day-' + t + '-' + dateKey;
     const checked = planChecks[listKey] || [];
-    const mode = t === 'gluteo' ? 'series' : 'completion';
+    const target = SERIES_TARGET[t] || 4;
     const items = plan.items.map((text, idx) => `
       <li class="${checked.includes(idx) ? 'plan-checked' : ''}">
         <button class="plan-check ${checked.includes(idx) ? 'checked' : ''}"
-          onclick="toggleCheck('${listKey}', ${idx}, ${plan.items.length}, '${mode}', '${t}')"></button>
+          onclick="toggleCheck('${listKey}', ${idx}, ${plan.items.length}, '${t}')"></button>
         <span class="plan-text">${text}</span>
       </li>
     `).join('');
-    const counter = mode === 'series'
-      ? `<p class="plan-counter">Series de hoy: ${planSeries[listKey] || 0}/${SERIES_TARGET[t] || 4} ${(planSeries[listKey] || 0) >= (SERIES_TARGET[t] || 4) ? '🎉' : ''}</p>`
-      : `<p class="plan-counter">Hecho ${planCompletions[t] || 0} veces en total</p>`;
+    const counter = `<p class="plan-counter">Series de hoy: ${planSeries[listKey] || 0}/${target} ${(planSeries[listKey] || 0) >= target ? '🎉' : ''} · Hecho ${planCompletions[t] || 0} veces en total</p>`;
     return `<p class="plan-block-title">${plan.title}</p>${counter}<ul class="plan-list">${items}</ul>`;
   }).join('');
 }
@@ -796,8 +842,10 @@ function selectPlanDay(idx) {
 }
 
 function renderMobility() {
-  document.getElementById('mobilityHipCounter').textContent = `Hecho ${planCompletions.hip || 0} veces en total`;
-  renderCheckList(document.getElementById('mobilityHipList'), MOBILITY_HIP, 'mobility-hip-' + todayKey(), 'completion', 'hip');
+  const listKey = 'mobility-hip-' + todayKey();
+  document.getElementById('mobilityHipCounter').textContent =
+    `Series de hoy: ${planSeries[listKey] || 0}/${SERIES_TARGET.hip} ${(planSeries[listKey] || 0) >= SERIES_TARGET.hip ? '🎉' : ''} · Hecho ${planCompletions.hip || 0} veces en total`;
+  renderCheckList(document.getElementById('mobilityHipList'), MOBILITY_HIP, listKey, 'hip');
 }
 
 /* ---------- ENTRENOS (registro libre) ---------- */
@@ -1004,7 +1052,7 @@ const DEFAULT_MENU_TEMPLATE = [
     day: 'Lunes',
     comida: [
       { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
-      { texto: 'Garbanzos', cantidad: '150 g' },
+      { texto: 'Garbanzos', cantidad: '120 g' },
       { texto: 'Ensalada verde', cantidad: '100 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
@@ -1016,7 +1064,8 @@ const DEFAULT_MENU_TEMPLATE = [
   {
     day: 'Martes',
     comida: [
-      { texto: 'Lentejas estofadas con pollo', cantidad: '300 g' },
+      { texto: 'Lentejas estofadas', cantidad: '200 g' },
+      { texto: 'Pechuga de pollo a la plancha', cantidad: '120 g' },
       { texto: 'Ensalada verde', cantidad: '100 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
@@ -1028,7 +1077,8 @@ const DEFAULT_MENU_TEMPLATE = [
   {
     day: 'Miércoles',
     comida: [
-      { texto: 'Lentejas estofadas con pollo', cantidad: '300 g' },
+      { texto: 'Lentejas estofadas', cantidad: '200 g' },
+      { texto: 'Pechuga de pollo a la plancha', cantidad: '120 g' },
       { texto: 'Ensalada verde', cantidad: '100 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
@@ -1041,7 +1091,7 @@ const DEFAULT_MENU_TEMPLATE = [
     day: 'Jueves',
     comida: [
       { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
-      { texto: 'Garbanzos', cantidad: '150 g' },
+      { texto: 'Garbanzos', cantidad: '120 g' },
       { texto: 'Ensalada verde', cantidad: '100 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
@@ -1053,17 +1103,17 @@ const DEFAULT_MENU_TEMPLATE = [
   {
     day: 'Viernes',
     comida: [
-      { texto: 'Garbanzos con atún y verduras', cantidad: '300 g' }
+      { texto: 'Ensalada verde con atún', cantidad: '200 g' }
     ],
     cena: [
-      { texto: 'Tortilla francesa con champiñones y ensalada', cantidad: '280 g' }
+      { texto: 'Cena fuera / con planes — ajusta tú la cantidad', cantidad: '1 ud' }
     ]
   },
   {
     day: 'Sábado',
     comida: [
       { texto: 'Hamburguesa casera (sin pan)', cantidad: '200 g' },
-      { texto: 'Boniato asado', cantidad: '150 g' },
+      { texto: 'Boniato asado', cantidad: '100 g' },
       { texto: 'Ensalada verde', cantidad: '100 g' }
     ],
     cena: [
