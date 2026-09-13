@@ -824,72 +824,276 @@ function renderWorkouts() {
   });
 }
 
-/* ---------- MENÚ SEMANAL (editable: plato y gramos) ----------
+/* ---------- MENÚ SEMANAL (editable, ingrediente a ingrediente) ----------
    El menú se guarda en localStorage para que lo puedas cambiar tú
-   mismo cada semana sin tener que pedírmelo en el chat. Reglas que
-   sigue el menú por defecto: comida siempre en tupper único, el
-   pescado va solo en la cena, y como mucho un día de pasta.
+   mismo cada semana sin tener que pedírmelo en el chat. Cada comida
+   es una lista de ingredientes con su propia cantidad (no un gramaje
+   total del plato), para poder añadir o quitar líneas libremente.
+   Reglas que sigue el menú por defecto: comida siempre en tupper
+   único, el pescado va solo en la cena, y como mucho un día de pasta.
 ------------------------------------------------------------------- */
 
 // Plantilla genérica de repuesto, por si quieres "resetear" el menú
 const DEFAULT_MENU_TEMPLATE = [
-  { day: 'Lunes', comida: { texto: 'Arroz integral con pollo a la plancha, calabacín y pimiento salteado', gramos: 350 }, cena: { texto: 'Crema de calabacín con huevo duro', gramos: 280 } },
-  { day: 'Martes', comida: { texto: 'Lentejas estofadas con verduras y taquitos de pavo', gramos: 350 }, cena: { texto: 'Merluza al horno con espárragos', gramos: 280 } },
-  { day: 'Miércoles', comida: { texto: 'Pasta integral con pollo, tomate y aceitunas', gramos: 350 }, cena: { texto: 'Tortilla francesa con champiñones y ensalada', gramos: 280 } },
-  { day: 'Jueves', comida: { texto: 'Quinoa con garbanzos, espinacas y huevo', gramos: 350 }, cena: { texto: 'Salmón al vapor con brócoli', gramos: 280 } },
-  { day: 'Viernes', comida: { texto: 'Arroz con verduras y pollo', gramos: 350 }, cena: { texto: 'Revuelto de espárragos con jamón de pavo', gramos: 280 } },
-  { day: 'Sábado', comida: { texto: 'Pollo al curry con arroz basmati y verduras', gramos: 350 }, cena: { texto: 'Ensalada de queso fresco, tomate y nueces', gramos: 280 } },
-  { day: 'Domingo', comida: { texto: 'Garbanzos con verdura (puchero de toda la vida)', gramos: 350 }, cena: { texto: 'Pescado blanco a la plancha con ensalada', gramos: 280 } }
+  { day: 'Lunes', comida: [{ texto: 'Arroz integral con pollo a la plancha y verduras salteadas', cantidad: '350 g' }], cena: [{ texto: 'Crema de calabacín con huevo duro', cantidad: '280 g' }] },
+  { day: 'Martes', comida: [{ texto: 'Lentejas estofadas con verduras y pollo', cantidad: '350 g' }], cena: [{ texto: 'Merluza al horno con verduras', cantidad: '280 g' }] },
+  { day: 'Miércoles', comida: [{ texto: 'Pasta integral con pollo, tomate y aceitunas', cantidad: '350 g' }], cena: [{ texto: 'Tortilla francesa con champiñones y ensalada', cantidad: '280 g' }] },
+  { day: 'Jueves', comida: [{ texto: 'Quinoa con garbanzos, espinacas y huevo', cantidad: '350 g' }], cena: [{ texto: 'Salmón al vapor con verduras', cantidad: '280 g' }] },
+  { day: 'Viernes', comida: [{ texto: 'Arroz con verduras y pollo', cantidad: '350 g' }], cena: [{ texto: 'Revuelto de verduras con pollo', cantidad: '280 g' }] },
+  { day: 'Sábado', comida: [{ texto: 'Pollo al curry con arroz basmati y verduras', cantidad: '350 g' }], cena: [{ texto: 'Ensalada de queso fresco, tomate y nueces', cantidad: '280 g' }] },
+  { day: 'Domingo', comida: [{ texto: 'Garbanzos con verdura (puchero de toda la vida)', cantidad: '350 g' }], cena: [{ texto: 'Pescado blanco a la plancha con ensalada', cantidad: '280 g' }] }
 ];
 
-// Tu menú real de esta semana, hecho con lo que dijiste que tienes:
-// hamburguesa casera, huevos con gulas, salmón, pisto de tu madre,
-// salchichas congeladas, pollo al curry, lasaña, chili proteico,
-// albóndigas y verduras (pimiento y calabacín). Domingo = hoy.
+// Tu menú real de esta semana. Sin espárragos (caros y no tienes),
+// más pimiento amarillo y cebolla, pollo en vez de pavo, berenjena
+// blanca en chips al horno una noche, y ñoquis con las albóndigas
+// el miércoles para llenar más (sois dos: 4 albóndigas para ti,
+// 5 para tu pareja). Domingo = hoy.
 const THIS_WEEK_MENU = [
-  { day: 'Lunes', comida: { texto: 'Pollo al curry con arroz basmati y verduras', gramos: 350 }, cena: { texto: 'Tortilla francesa con champiñones y ensalada', gramos: 280 } },
-  { day: 'Martes', comida: { texto: 'Chili casero proteico', gramos: 350 }, cena: { texto: 'Revuelto de espárragos con jamón de pavo', gramos: 250 } },
-  { day: 'Miércoles', comida: { texto: 'Albóndigas caseras con pimiento y calabacín salteados', gramos: 350 }, cena: { texto: 'Salmón al horno con espárragos (teletrabajo)', gramos: 280 } },
-  { day: 'Jueves', comida: { texto: 'Pisto de mamá con huevo poché o taquitos de pollo', gramos: 350 }, cena: { texto: 'Ensalada de queso fresco, tomate y nueces', gramos: 280 } },
-  { day: 'Viernes', comida: { texto: 'Lentejas estofadas con verduras y taquitos de pavo', gramos: 350 }, cena: { texto: 'Salchichas a la plancha con pimiento y ensalada', gramos: 280 } },
-  { day: 'Sábado', comida: { texto: 'Lasaña casera 🍝 (único día con pasta esta semana)', gramos: 350 }, cena: { texto: 'Crema de calabacín con huevo duro', gramos: 280 } },
-  { day: 'Domingo', comida: { texto: 'Hamburguesa casera 🍔 (hoy)', gramos: 300 }, cena: { texto: 'Huevos con gulas 🍳 (hoy)', gramos: 250 } }
+  {
+    day: 'Lunes',
+    comida: [
+      { texto: 'Pollo a la plancha', cantidad: '200 g' },
+      { texto: 'Arroz basmati', cantidad: '150 g' },
+      { texto: 'Calabacín y pimiento salteados', cantidad: '150 g' }
+    ],
+    cena: [
+      { texto: 'Tortilla francesa (huevo)', cantidad: '3 uds' },
+      { texto: 'Champiñones salteados', cantidad: '100 g' },
+      { texto: 'Ensalada verde', cantidad: '100 g' }
+    ]
+  },
+  {
+    day: 'Martes',
+    comida: [
+      { texto: 'Chili casero proteico', cantidad: '300 g' },
+      { texto: 'Arroz blanco', cantidad: '150 g' }
+    ],
+    cena: [
+      { texto: 'Pollo a la plancha en tiras', cantidad: '150 g' },
+      { texto: 'Pimiento amarillo y cebolla salteados', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Miércoles',
+    comida: [
+      { texto: 'Albóndigas caseras', cantidad: '9 uds (4 tú + 5 tu pareja)' },
+      { texto: 'Ñoquis salteados', cantidad: '300 g' },
+      { texto: 'Pimiento amarillo y cebolla', cantidad: '150 g' }
+    ],
+    cena: [
+      { texto: 'Salmón al horno (teletrabajo)', cantidad: '280 g' },
+      { texto: 'Pimiento amarillo y cebolla al horno', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Jueves',
+    comida: [
+      { texto: 'Pisto de mamá', cantidad: '300 g' },
+      { texto: 'Huevo poché o pollo desmenuzado', cantidad: '100 g' }
+    ],
+    cena: [
+      { texto: 'Huevos revueltos', cantidad: '3 uds' },
+      { texto: 'Chips de berenjena blanca al horno con especias', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Viernes',
+    comida: [
+      { texto: 'Lentejas estofadas con verduras', cantidad: '300 g' },
+      { texto: 'Taquitos de pollo', cantidad: '100 g' }
+    ],
+    cena: [
+      { texto: 'Salchichas a la plancha', cantidad: '200 g' },
+      { texto: 'Pimiento amarillo y cebolla salteados', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Sábado',
+    comida: [
+      { texto: 'Lasaña casera 🍝 (único día con pasta de trigo)', cantidad: '350 g' }
+    ],
+    cena: [
+      { texto: 'Crema de calabacín', cantidad: '300 ml' },
+      { texto: 'Huevo duro', cantidad: '2 uds' }
+    ]
+  },
+  {
+    day: 'Domingo',
+    comida: [
+      { texto: 'Hamburguesa casera 🍔 (hoy)', cantidad: '2 uds' }
+    ],
+    cena: [
+      { texto: 'Huevo (para gulas) 🍳 (hoy)', cantidad: '3 uds' },
+      { texto: 'Gulas', cantidad: '100 g' }
+    ]
+  }
 ];
 
-let menuPlanState = load(STORAGE_KEYS.menuPlan, null) || JSON.parse(JSON.stringify(THIS_WEEK_MENU));
+// Convierte un menú guardado con el formato antiguo (un plato + gramos
+// por comida) al formato nuevo (lista de ingredientes), para que un
+// menú ya guardado en el móvil no se rompa al actualizar la app.
+function normalizeMenuPlan(plan) {
+  const toList = (meal) => {
+    if (Array.isArray(meal)) return meal.length ? meal : [{ texto: '', cantidad: '' }];
+    if (meal && meal.texto) return [{ texto: meal.texto, cantidad: meal.gramos ? `${meal.gramos} g` : '' }];
+    return [{ texto: '', cantidad: '' }];
+  };
+  return plan.map(d => ({ day: d.day, comida: toList(d.comida), cena: toList(d.cena) }));
+}
+
+let menuPlanState = normalizeMenuPlan(load(STORAGE_KEYS.menuPlan, null) || THIS_WEEK_MENU);
+
+// Diccionario aproximado (kcal/proteína/carbos/grasa por 100g) para poder
+// calcular las kcal y macros del día a partir de los ingredientes y sus
+// cantidades. Es una estimación (no lee etiquetas reales), y si un
+// ingrediente no está aquí, o la cantidad no se puede convertir a gramos,
+// se avisa en vez de dar un número inventado.
+const NUTRITION_DB = [
+  { keys: ['pollo'], kcal: 165, p: 31, c: 0, f: 3.6 },
+  { keys: ['arroz'], kcal: 130, p: 2.7, c: 28, f: 0.3 },
+  { keys: ['calabacin', 'calabacín'], kcal: 17, p: 1.2, c: 3.1, f: 0.3 },
+  { keys: ['pimiento'], kcal: 31, p: 1, c: 6, f: 0.3 },
+  { keys: ['cebolla'], kcal: 40, p: 1.1, c: 9, f: 0.1 },
+  { keys: ['huevo'], kcal: 155, p: 13, c: 1.1, f: 11, gramsPerUnit: 60 },
+  { keys: ['champin', 'champiñ'], kcal: 30, p: 3, c: 3.3, f: 1 },
+  { keys: ['ensalada', 'lechuga'], kcal: 15, p: 1.2, c: 2.9, f: 0.2 },
+  { keys: ['chili'], kcal: 150, p: 14, c: 10, f: 6 },
+  { keys: ['albondiga', 'albóndiga'], kcal: 220, p: 15, c: 8, f: 14, gramsPerUnit: 30 },
+  { keys: ['ñoqui', 'noqui'], kcal: 155, p: 3.5, c: 31, f: 2 },
+  { keys: ['pisto'], kcal: 90, p: 1.5, c: 8, f: 6 },
+  { keys: ['hamburguesa'], kcal: 250, p: 20, c: 0, f: 18, gramsPerUnit: 150 },
+  { keys: ['lasaña', 'lasagna', 'lasana'], kcal: 190, p: 9, c: 16, f: 10 },
+  { keys: ['salchicha'], kcal: 260, p: 12, c: 2, f: 23 },
+  { keys: ['gulas'], kcal: 80, p: 11, c: 1, f: 3 },
+  { keys: ['berenjena'], kcal: 25, p: 1, c: 6, f: 0.2 },
+  { keys: ['crema'], kcal: 45, p: 1.5, c: 5, f: 2 },
+  { keys: ['salmon', 'salmón'], kcal: 208, p: 20, c: 0, f: 13 },
+  { keys: ['lenteja'], kcal: 116, p: 9, c: 20, f: 0.4 },
+  { keys: ['garbanzo'], kcal: 164, p: 8.9, c: 27, f: 2.6 },
+  { keys: ['queso'], kcal: 98, p: 11, c: 3.4, f: 4 },
+  { keys: ['nuez', 'nueces'], kcal: 607, p: 20, c: 20, f: 54 },
+  { keys: ['tomate'], kcal: 18, p: 0.9, c: 3.9, f: 0.2 },
+  { keys: ['merluza'], kcal: 86, p: 17.8, c: 0, f: 1 },
+  { keys: ['pescado blanco'], kcal: 90, p: 18, c: 0, f: 1.2 },
+  { keys: ['quinoa'], kcal: 120, p: 4.4, c: 21, f: 1.9 },
+  { keys: ['espinaca'], kcal: 23, p: 2.9, c: 3.6, f: 0.4 },
+  { keys: ['brocoli', 'brócoli'], kcal: 34, p: 2.8, c: 7, f: 0.4 }
+];
+
+function normalizeText(str) {
+  return str.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Si el ingrediente combina varias cosas reconocidas (p.ej. "pimiento y
+// cebolla") se promedian sus valores — es una mezcla, no una suma.
+function matchFoodMacros(texto) {
+  const norm = normalizeText(texto);
+  const hits = NUTRITION_DB.filter(item => item.keys.some(k => norm.includes(normalizeText(k))));
+  if (!hits.length) return null;
+  const avg = (field) => hits.reduce((sum, h) => sum + h[field], 0) / hits.length;
+  return { kcal: avg('kcal'), p: avg('p'), c: avg('c'), f: avg('f'), gramsPerUnit: hits[0].gramsPerUnit };
+}
+
+// Convierte "300 g" / "300 ml" / "3 uds" a gramos. Con unidades solo
+// funciona si conocemos el peso aproximado de una unidad de ese alimento.
+function parseCantidadGrams(cantidadTexto, gramsPerUnit) {
+  const norm = (cantidadTexto || '').toLowerCase().trim();
+  let m = norm.match(/^([\d.,]+)\s*(g|gr|gramos|ml)\b/);
+  if (m) return parseFloat(m[1].replace(',', '.'));
+  m = norm.match(/^([\d.,]+)\s*(uds?|unidades?|huevos?)\b/);
+  if (m && gramsPerUnit) return parseFloat(m[1].replace(',', '.')) * gramsPerUnit;
+  return null;
+}
+
+function sumMealMacros(items, totals) {
+  let ok = true;
+  (items || []).forEach(ing => {
+    if (!ing.texto || !ing.cantidad) return;
+    const food = matchFoodMacros(ing.texto);
+    if (!food) { ok = false; return; }
+    const grams = parseCantidadGrams(ing.cantidad, food.gramsPerUnit);
+    if (grams == null) { ok = false; return; }
+    const ratio = grams / 100;
+    totals.kcal += food.kcal * ratio;
+    totals.p += food.p * ratio;
+    totals.c += food.c * ratio;
+    totals.f += food.f * ratio;
+  });
+  return ok;
+}
+
+function renderMealBlock(items, dayIdx, mealKey, label) {
+  const rows = items.map((ing, itemIdx) => `
+    <div class="menu-ingredient-row">
+      <input type="text" class="menu-text-input" placeholder="Ingrediente"
+        data-day="${dayIdx}" data-meal="${mealKey}" data-item="${itemIdx}" data-field="texto" value="${ing.texto}">
+      <input type="text" class="menu-cantidad-input" placeholder="Cantidad"
+        data-day="${dayIdx}" data-meal="${mealKey}" data-item="${itemIdx}" data-field="cantidad" value="${ing.cantidad}">
+      <button type="button" class="del" data-remove-ingredient data-day="${dayIdx}" data-meal="${mealKey}" data-item="${itemIdx}">✕</button>
+    </div>
+  `).join('');
+  return `
+    <label class="menu-field-label ${mealKey === 'cena' ? 'cena' : ''}">${label}</label>
+    ${rows}
+    <button type="button" class="btn btn-ghost btn-sm" data-add-ingredient data-day="${dayIdx}" data-meal="${mealKey}">+ Añadir ingrediente</button>
+  `;
+}
+
+function renderDayTotals(d) {
+  const totals = { kcal: 0, p: 0, c: 0, f: 0 };
+  const okComida = sumMealMacros(d.comida, totals);
+  const okCena = sumMealMacros(d.cena, totals);
+  const note = (okComida && okCena)
+    ? ''
+    : '<span class="menu-totals-note">* estimación aproximada — algún ingrediente o cantidad no se ha podido calcular (revísalo o dale un formato tipo "150 g")</span>';
+  return `
+    <div class="menu-day-totals">
+      🔥 <b>${Math.round(totals.kcal)} kcal</b> · P ${Math.round(totals.p)}g · C ${Math.round(totals.c)}g · G ${Math.round(totals.f)}g
+      ${note}
+    </div>
+  `;
+}
 
 function renderMenuPlan() {
-  document.getElementById('menuPlan').innerHTML = menuPlanState.map((d, idx) => `
+  document.getElementById('menuPlan').innerHTML = menuPlanState.map((d, dayIdx) => `
     <div class="menu-day">
       <div class="menu-day-title">${d.day}</div>
-      <label class="menu-field-label">Comida</label>
-      <div class="menu-field-row">
-        <input type="text" class="menu-text-input" data-idx="${idx}" data-meal="comida" data-field="texto" value="${d.comida.texto}">
-        <input type="number" class="menu-grams-input" data-idx="${idx}" data-meal="comida" data-field="gramos" value="${d.comida.gramos}" inputmode="numeric">
-        <span class="menu-grams-unit">g</span>
-      </div>
-      <label class="menu-field-label cena">Cena</label>
-      <div class="menu-field-row">
-        <input type="text" class="menu-text-input" data-idx="${idx}" data-meal="cena" data-field="texto" value="${d.cena.texto}">
-        <input type="number" class="menu-grams-input" data-idx="${idx}" data-meal="cena" data-field="gramos" value="${d.cena.gramos}" inputmode="numeric">
-        <span class="menu-grams-unit">g</span>
-      </div>
+      ${renderMealBlock(d.comida, dayIdx, 'comida', 'Comida')}
+      ${renderMealBlock(d.cena, dayIdx, 'cena', 'Cena')}
+      ${renderDayTotals(d)}
     </div>
   `).join('');
 
-  document.querySelectorAll('#menuPlan input').forEach(input => {
+  document.querySelectorAll('.menu-ingredient-row input').forEach(input => {
     input.addEventListener('change', () => {
-      const { idx, meal, field } = input.dataset;
-      const value = field === 'gramos' ? (parseInt(input.value, 10) || 0) : input.value;
-      menuPlanState[idx][meal][field] = value;
+      const { day, meal, item, field } = input.dataset;
+      menuPlanState[day][meal][item][field] = input.value;
       save(STORAGE_KEYS.menuPlan, menuPlanState);
+    });
+  });
+  document.querySelectorAll('[data-add-ingredient]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const { day, meal } = btn.dataset;
+      menuPlanState[day][meal].push({ texto: '', cantidad: '' });
+      save(STORAGE_KEYS.menuPlan, menuPlanState);
+      renderMenuPlan();
+    });
+  });
+  document.querySelectorAll('[data-remove-ingredient]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const { day, meal, item } = btn.dataset;
+      menuPlanState[day][meal].splice(item, 1);
+      if (!menuPlanState[day][meal].length) menuPlanState[day][meal].push({ texto: '', cantidad: '' });
+      save(STORAGE_KEYS.menuPlan, menuPlanState);
+      renderMenuPlan();
     });
   });
 }
 
 document.getElementById('resetMenuBtn').addEventListener('click', () => {
   if (!confirm('¿Restaurar la plantilla genérica? Perderás el menú que has editado.')) return;
-  menuPlanState = JSON.parse(JSON.stringify(DEFAULT_MENU_TEMPLATE));
+  menuPlanState = normalizeMenuPlan(JSON.parse(JSON.stringify(DEFAULT_MENU_TEMPLATE)));
   save(STORAGE_KEYS.menuPlan, menuPlanState);
   renderMenuPlan();
 });

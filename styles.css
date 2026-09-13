@@ -428,21 +428,34 @@ input:focus, select:focus, button:focus{
 }
 .menu-field-label:first-child{ margin-top: 0; }
 .menu-field-label.cena{ color: var(--coral); }
-.menu-field-row{
+.menu-ingredient-row{
   display:flex;
   gap: 6px;
+  align-items:center;
+  margin-bottom: 6px;
 }
-.menu-field-row .menu-text-input{ flex: 1; }
-.menu-field-row .menu-grams-input{
-  width: 62px;
-  flex: none;
-  text-align: right;
+.menu-ingredient-row .menu-text-input{ flex: 2; }
+.menu-ingredient-row .menu-cantidad-input{ flex: 1; min-width: 78px; }
+.menu-ingredient-row .del{
+  background:none; border:none; color: var(--muted); cursor:pointer; font-size: 16px; flex-shrink:0; padding: 0 2px;
 }
-.menu-grams-unit{
+.menu-day-totals{
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  background: var(--bg);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.menu-totals-note{
+  display:block;
+  margin-top: 4px;
+  font-size: 10.5px;
   color: var(--muted);
-  align-self: center;
+  font-family: var(--font-body);
+  line-height: 1.4;
 }
 #resetMenuBtn{ margin-top: 10px; }
 
