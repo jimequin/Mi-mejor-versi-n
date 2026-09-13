@@ -120,6 +120,9 @@
           <select id="sportInput" required>
             <option value="" disabled selected>Tipo de entreno</option>
             <option data-met="8">Crossfit / Gimnasio</option>
+            <option data-met="6">Fuerza</option>
+            <option data-met="9">Hyrox</option>
+            <option data-met="8">Calistenia</option>
             <option data-met="9.8">Correr</option>
             <option data-met="7">Fútbol</option>
             <option data-met="7.5">Ciclismo</option>
@@ -241,6 +244,13 @@
         </div>
         <ul id="foodList" class="log-list"></ul>
         <p class="empty-msg" id="foodEmpty">Aún no has añadido nada hoy.</p>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">🧾 Generar lista desde el menú semanal</p>
+        <p class="hint-text">Suma los ingredientes de las 7 comidas y cenas de la pestaña Menús, calcula una cantidad total y te asigna un súper y un precio <b>estimado</b> (no son precios reales de hoy, son orientativos para hacerte una idea del gasto). Puedes editar cualquier producto después a mano.</p>
+        <button type="button" id="generateShoppingBtn" class="btn btn-lime">Generar lista de la compra</button>
+        <p class="hint-text folder-scan-status" id="generateShoppingStatus"></p>
       </div>
 
       <div class="card margin-card">
