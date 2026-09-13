@@ -846,16 +846,18 @@ const DEFAULT_MENU_TEMPLATE = [
 
 // Tu menú real de esta semana. Sin espárragos (caros y no tienes),
 // más pimiento amarillo y cebolla, pollo en vez de pavo, berenjena
-// blanca en chips al horno una noche, y ñoquis con las albóndigas
-// el miércoles para llenar más (sois dos: 4 albóndigas para ti,
-// 5 para tu pareja). Domingo = hoy.
+// blanca en chips al horno una noche. Albóndigas dos días (lunes y
+// miércoles), solo tu ración — pon tú los gramos/uds reales que
+// vayas a comer y las kcal/macros se recalculan solas. Dos días de
+// pisto (jueves y sábado) para gastarlo, solo un día de salchichas
+// congeladas. Domingo = hoy.
 const THIS_WEEK_MENU = [
   {
     day: 'Lunes',
     comida: [
-      { texto: 'Pollo a la plancha', cantidad: '200 g' },
-      { texto: 'Arroz basmati', cantidad: '150 g' },
-      { texto: 'Calabacín y pimiento salteados', cantidad: '150 g' }
+      { texto: 'Albóndigas caseras (tu ración)', cantidad: '4 uds' },
+      { texto: 'Arroz blanco', cantidad: '200 g' },
+      { texto: 'Pimiento amarillo y cebolla salteados', cantidad: '150 g' }
     ],
     cena: [
       { texto: 'Tortilla francesa (huevo)', cantidad: '3 uds' },
@@ -877,7 +879,7 @@ const THIS_WEEK_MENU = [
   {
     day: 'Miércoles',
     comida: [
-      { texto: 'Albóndigas caseras', cantidad: '9 uds (4 tú + 5 tu pareja)' },
+      { texto: 'Albóndigas caseras (tu ración)', cantidad: '4 uds' },
       { texto: 'Ñoquis salteados', cantidad: '300 g' },
       { texto: 'Pimiento amarillo y cebolla', cantidad: '150 g' }
     ],
@@ -889,8 +891,8 @@ const THIS_WEEK_MENU = [
   {
     day: 'Jueves',
     comida: [
-      { texto: 'Pisto de mamá', cantidad: '300 g' },
-      { texto: 'Huevo poché o pollo desmenuzado', cantidad: '100 g' }
+      { texto: 'Pisto de mamá con pollo', cantidad: '300 g' },
+      { texto: 'Pollo desmenuzado', cantidad: '100 g' }
     ],
     cena: [
       { texto: 'Huevos revueltos', cantidad: '3 uds' },
@@ -900,8 +902,7 @@ const THIS_WEEK_MENU = [
   {
     day: 'Viernes',
     comida: [
-      { texto: 'Lentejas estofadas con verduras', cantidad: '300 g' },
-      { texto: 'Taquitos de pollo', cantidad: '100 g' }
+      { texto: 'Lasaña casera 🍝 (único día con pasta de trigo)', cantidad: '350 g' }
     ],
     cena: [
       { texto: 'Salchichas a la plancha', cantidad: '200 g' },
@@ -911,7 +912,8 @@ const THIS_WEEK_MENU = [
   {
     day: 'Sábado',
     comida: [
-      { texto: 'Lasaña casera 🍝 (único día con pasta de trigo)', cantidad: '350 g' }
+      { texto: 'Pisto de mamá', cantidad: '300 g' },
+      { texto: 'Huevo a la plancha', cantidad: '2 uds' }
     ],
     cena: [
       { texto: 'Crema de calabacín', cantidad: '300 ml' },
