@@ -918,8 +918,12 @@ function renderWorkouts() {
    único, el pescado va solo en la cena, y como mucho un día de pasta.
 ------------------------------------------------------------------- */
 
-// Plantilla genérica de repuesto (dieta orientada a perder grasa: alta
-// en proteína, carbohidratos controlados). Reglas fijas que pediste:
+// Plantilla genérica de repuesto (dieta orientada a perder grasa sin
+// perder músculo: alta en proteína, carbohidratos controlados, y
+// pensada para ahorrar — legumbres de base (garbanzos que ya tienes,
+// lentejas) en vez de comprar más carne/pescado fresco, y aprovecha lo
+// que ya tienes congelado (gulas, salmón) en vez de comprar más
+// pescado fresco caro). Reglas fijas que pediste:
 // - Nunca quinoa combinada con legumbres (muchas kcal/carbos juntas).
 // - Lunes = jueves y martes = miércoles, siempre el mismo plato (cocina
 //   de una vez, comes dos días de lo mismo) — así arranca cualquier
@@ -930,61 +934,59 @@ const DEFAULT_MENU_TEMPLATE = [
     day: 'Lunes',
     comida: [
       { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
-      { texto: 'Verduras salteadas (calabacín, pimiento, cebolla)', cantidad: '200 g' },
+      { texto: 'Garbanzos', cantidad: '150 g' },
+      { texto: 'Ensalada verde', cantidad: '100 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
     cena: [
-      { texto: 'Salmón al horno', cantidad: '200 g' },
-      { texto: 'Ensalada verde', cantidad: '150 g' }
+      { texto: 'Huevo (para gulas)', cantidad: '3 uds' },
+      { texto: 'Gulas (congeladas)', cantidad: '100 g' }
     ]
   },
   {
     day: 'Martes',
     comida: [
-      { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
-      { texto: 'Garbanzos', cantidad: '150 g' },
+      { texto: 'Lentejas estofadas con pollo', cantidad: '300 g' },
       { texto: 'Ensalada verde', cantidad: '100 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
     cena: [
-      { texto: 'Huevos revueltos', cantidad: '3 uds' },
-      { texto: 'Champiñones salteados', cantidad: '100 g' }
+      { texto: 'Merluza al horno', cantidad: '200 g' },
+      { texto: 'Brócoli al vapor', cantidad: '150 g' }
     ]
   },
   {
     day: 'Miércoles',
     comida: [
-      { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
-      { texto: 'Garbanzos', cantidad: '150 g' },
+      { texto: 'Lentejas estofadas con pollo', cantidad: '300 g' },
       { texto: 'Ensalada verde', cantidad: '100 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
     cena: [
-      { texto: 'Huevos revueltos', cantidad: '3 uds' },
-      { texto: 'Champiñones salteados', cantidad: '100 g' }
+      { texto: 'Merluza al horno', cantidad: '200 g' },
+      { texto: 'Brócoli al vapor', cantidad: '150 g' }
     ]
   },
   {
     day: 'Jueves',
     comida: [
       { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
-      { texto: 'Verduras salteadas (calabacín, pimiento, cebolla)', cantidad: '200 g' },
+      { texto: 'Garbanzos', cantidad: '150 g' },
+      { texto: 'Ensalada verde', cantidad: '100 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
     cena: [
-      { texto: 'Salmón al horno', cantidad: '200 g' },
-      { texto: 'Ensalada verde', cantidad: '150 g' }
+      { texto: 'Huevo (para gulas)', cantidad: '3 uds' },
+      { texto: 'Gulas (congeladas)', cantidad: '100 g' }
     ]
   },
   {
     day: 'Viernes',
     comida: [
-      { texto: 'Pollo al curry con arroz basmati', cantidad: '250 g' },
-      { texto: 'Brócoli y calabacín al vapor', cantidad: '150 g' }
+      { texto: 'Garbanzos con atún y verduras', cantidad: '300 g' }
     ],
     cena: [
-      { texto: 'Merluza al horno', cantidad: '200 g' },
-      { texto: 'Brócoli al vapor', cantidad: '150 g' }
+      { texto: 'Tortilla francesa con champiñones y ensalada', cantidad: '280 g' }
     ]
   },
   {
@@ -995,8 +997,8 @@ const DEFAULT_MENU_TEMPLATE = [
       { texto: 'Ensalada verde', cantidad: '100 g' }
     ],
     cena: [
-      { texto: 'Pescado blanco a la plancha', cantidad: '200 g' },
-      { texto: 'Pimiento y calabacín salteados', cantidad: '150 g' }
+      { texto: 'Salmón al horno (congelado)', cantidad: '200 g' },
+      { texto: 'Brócoli al vapor', cantidad: '150 g' }
     ]
   },
   {
@@ -1152,6 +1154,7 @@ const NUTRITION_DB = [
   { keys: ['salmon', 'salmón'], kcal: 208, p: 20, c: 0, f: 13 },
   { keys: ['lenteja'], kcal: 116, p: 9, c: 20, f: 0.4 },
   { keys: ['garbanzo'], kcal: 164, p: 8.9, c: 27, f: 2.6 },
+  { keys: ['atun', 'atún'], kcal: 116, p: 26, c: 0, f: 1 },
   { keys: ['queso'], kcal: 98, p: 11, c: 3.4, f: 4 },
   { keys: ['nuez', 'nueces'], kcal: 607, p: 20, c: 20, f: 54 },
   { keys: ['tomate'], kcal: 18, p: 0.9, c: 3.9, f: 0.2 },
@@ -1546,6 +1549,7 @@ const PRECIO_DB = [
   { keys: ['salmon', 'salmón'], label: 'Salmón', eur100g: 1.8, store: 'Mercadona' },
   { keys: ['lenteja'], label: 'Lentejas', eur100g: 0.25, store: 'Mercadona' },
   { keys: ['garbanzo'], label: 'Garbanzos', eur100g: 0.25, store: 'Mercadona' },
+  { keys: ['atun', 'atún'], label: 'Atún en lata', eur100g: 1.25, store: 'Mercadona' },
   { keys: ['queso'], label: 'Queso fresco', eur100g: 0.8, store: 'Mercadona' },
   { keys: ['nuez', 'nueces'], label: 'Nueces', eur100g: 1.5, store: 'Carrefour Express' },
   { keys: ['tomate'], label: 'Tomate', eur100g: 0.25, store: 'Mercadona' },
