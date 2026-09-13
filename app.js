@@ -9,7 +9,8 @@ const STORAGE_KEYS = {
   workouts: 'cuaderno.workouts',
   shopping: 'cuaderno.shopping',
   planChecks: 'cuaderno.planChecks',
-  foodLog: 'cuaderno.foodLog'
+  foodLog: 'cuaderno.foodLog',
+  folderImports: 'cuaderno.folderImports'
 };
 
 function load(key, fallback) {
@@ -141,6 +142,266 @@ function renderPhotos() {
   photoStrip.innerHTML = state.photos
     .map(p => `<img src="${p.src}" title="${new Date(p.date).toLocaleDateString('es-ES')}">`)
     .join('');
+}
+
+/* ---------- CARPETAS DE FOTOS DEL MÓVIL (importar + OCR) ----------
+   Conecta una carpeta real del teléfono y lee fotos nuevas para
+   rellenar el formulario automáticamente. Solo funciona en
+   Android + Chrome (File System Access API) — en iPhone/Safari no
+   existe esta función del navegador, así que ahí se sigue subiendo
+   la foto a mano con el botón de siempre. La lectura del número
+   (OCR, con Tesseract.js) es un intento: puede fallar o acertar a
+   medias, por eso siempre se puede revisar y corregir antes de
+   guardar. No se envía ninguna foto a ningún servidor: todo se
+   procesa en el propio navegador.
+------------------------------------------------------------------- */
+const supportsFolderPicker = 'showDirectoryPicker' in window;
+let folderImports = load(STORAGE_KEYS.folderImports, { peso: [], entreno: [] });
+const pendingFolderKeys = { peso: new Set(), entreno: new Set() };
+
+function openFolderDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('cuaderno-carpetas', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function saveFolderHandle(type, handle) {
+  const db = await openFolderDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(handle, type);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function getFolderHandle(type) {
+  try {
+    const db = await openFolderDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get(type);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error('Error leyendo carpeta guardada', e);
+    return null;
+  }
+}
+function markFolderFileImported(type, key) {
+  folderImports[type].push(key);
+  save(STORAGE_KEYS.folderImports, folderImports);
+  pendingFolderKeys[type].delete(key);
+}
+
+// Intenta sacar peso y composición corporal del texto leído en la foto
+function parseWeightOcr(text) {
+  const norm = text.toLowerCase().replace(/,/g, '.');
+  const result = {};
+  const patterns = {
+    kg: /peso[^0-9]{0,10}(\d{2,3}(?:\.\d)?)/,
+    fat: /gras(?:a)?(?:\s*corporal)?[^0-9%]{0,10}(\d{1,2}(?:\.\d)?)\s*%/,
+    muscle: /m[uú]scul[oa][^0-9%]{0,10}(\d{1,2}(?:\.\d)?)\s*%/,
+    water: /agua[^0-9%]{0,10}(\d{1,2}(?:\.\d)?)\s*%/,
+    visceral: /visceral[^0-9]{0,10}(\d{1,2}(?:\.\d)?)/,
+    bone: /[oó]se[a]?[^0-9]{0,10}(\d{1,2}(?:\.\d)?)/
+  };
+  for (const [key, re] of Object.entries(patterns)) {
+    const m = norm.match(re);
+    if (m) result[key] = parseFloat(m[1]);
+  }
+  // Si no encuentra la palabra "peso", coge el primer número que parezca un peso de persona (30-200kg)
+  if (result.kg == null) {
+    const nums = (norm.match(/\d{2,3}(?:\.\d)?/g) || []).map(parseFloat);
+    result.kg = nums.find(n => n >= 30 && n <= 200) || null;
+  }
+  return result;
+}
+
+// Intenta sacar minutos y kcal del texto leído en la foto de un entreno
+function parseWorkoutOcr(text) {
+  const norm = text.toLowerCase().replace(/,/g, '.');
+  const result = {};
+  let m = norm.match(/(\d{1,3})\s*(?:min|minutos)/);
+  if (m) result.minutes = parseInt(m[1], 10);
+  m = norm.match(/(\d{2,4})\s*(?:kcal|cal)/);
+  if (m) result.calories = parseInt(m[1], 10);
+  return result;
+}
+
+async function scanFolder(type) {
+  const statusEl = document.getElementById(type === 'peso' ? 'weightFolderStatus' : 'workoutFolderStatus');
+  const handle = await getFolderHandle(type);
+  if (!handle) return;
+
+  let perm = await handle.queryPermission({ mode: 'read' });
+  if (perm !== 'granted') perm = await handle.requestPermission({ mode: 'read' });
+  if (perm !== 'granted') {
+    statusEl.textContent = 'No has dado permiso para leer la carpeta.';
+    return;
+  }
+
+  statusEl.textContent = 'Buscando fotos nuevas…';
+  const found = [];
+  for await (const entry of handle.values()) {
+    if (entry.kind !== 'file' || !/\.(jpe?g|png|webp)$/i.test(entry.name)) continue;
+    const file = await entry.getFile();
+    const key = `${entry.name}|${file.size}|${file.lastModified}`;
+    if (folderImports[type].includes(key) || pendingFolderKeys[type].has(key)) continue;
+    found.push({ key, file });
+  }
+  found.sort((a, b) => a.file.lastModified - b.file.lastModified);
+
+  statusEl.textContent = found.length
+    ? `${found.length} foto(s) nueva(s) — revisa y guarda cada una abajo.`
+    : 'No hay fotos nuevas en la carpeta.';
+
+  for (const { key, file } of found) {
+    pendingFolderKeys[type].add(key);
+    addFolderReviewItem(type, key, file);
+  }
+}
+
+async function addFolderReviewItem(type, key, file) {
+  const queueEl = document.getElementById(type === 'peso' ? 'weightFolderQueue' : 'workoutFolderQueue');
+  let dataUrl;
+  try {
+    dataUrl = await fileToCompressedDataUrl(file, 640, 0.7);
+  } catch (e) {
+    console.error('No se pudo abrir la foto', file.name, e);
+    return; // formato no soportado por el navegador (p.ej. algún .heic) — se reintentará en el próximo escaneo
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'folder-review-item';
+  wrap.innerHTML = `
+    <img class="folder-review-thumb" src="${dataUrl}">
+    <div class="folder-review-body">
+      <span class="folder-review-name">${file.name}</span>
+      <span class="folder-ocr-badge">🔎 Leyendo foto…</span>
+      <div class="folder-review-fields"></div>
+      <div class="folder-review-actions">
+        <button type="button" class="btn btn-lime btn-sm" data-save>Guardar</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-discard>Descartar</button>
+      </div>
+      <details><summary>Texto detectado</summary><pre data-ocr-text>—</pre></details>
+    </div>
+  `;
+  queueEl.appendChild(wrap);
+  wrap.querySelector('.folder-review-thumb').addEventListener('click', () => openPhotoModal(dataUrl));
+  wrap.querySelector('[data-discard]').addEventListener('click', () => {
+    markFolderFileImported(type, key);
+    wrap.remove();
+  });
+
+  const badgeEl = wrap.querySelector('.folder-ocr-badge');
+  const fieldsEl = wrap.querySelector('.folder-review-fields');
+  let ocrData = {};
+  try {
+    const { data } = await Tesseract.recognize(dataUrl, 'eng');
+    wrap.querySelector('[data-ocr-text]').textContent = data.text.trim() || '(sin texto detectado)';
+    ocrData = type === 'peso' ? parseWeightOcr(data.text || '') : parseWorkoutOcr(data.text || '');
+    badgeEl.textContent = Object.keys(ocrData).some(k => ocrData[k] != null)
+      ? '✓ Datos detectados — revisa antes de guardar'
+      : '⚠️ No detecté ningún número, rellénalo a mano';
+  } catch (err) {
+    console.error('Error de OCR', err);
+    badgeEl.textContent = '⚠️ No se pudo leer la foto, rellena a mano';
+  }
+
+  if (type === 'peso') {
+    fieldsEl.innerHTML = `
+      <input type="number" step="0.1" data-field="kg" placeholder="Peso (kg)" value="${ocrData.kg ?? ''}">
+      <input type="number" step="0.1" data-field="fat" placeholder="Grasa %" value="${ocrData.fat ?? ''}">
+      <input type="number" step="0.1" data-field="muscle" placeholder="Músculo %" value="${ocrData.muscle ?? ''}">
+      <input type="number" step="0.1" data-field="water" placeholder="Agua %" value="${ocrData.water ?? ''}">
+      <input type="number" step="0.1" data-field="visceral" placeholder="Visceral" value="${ocrData.visceral ?? ''}">
+      <input type="number" step="0.01" data-field="bone" placeholder="Ósea (kg)" value="${ocrData.bone ?? ''}">
+    `;
+    wrap.querySelector('[data-save]').addEventListener('click', () => {
+      const get = (f) => {
+        const v = fieldsEl.querySelector(`[data-field="${f}"]`).value;
+        return v !== '' ? parseFloat(v) : null;
+      };
+      const kg = get('kg');
+      if (!kg) { alert('Pon al menos el peso antes de guardar.'); return; }
+      state.weights.push({
+        id: Date.now(),
+        date: new Date(file.lastModified || Date.now()).toISOString(),
+        kg, fat: get('fat'), muscle: get('muscle'), water: get('water'),
+        visceral: get('visceral'), bone: get('bone'), photo: dataUrl
+      });
+      state.weights.sort((a, b) => new Date(a.date) - new Date(b.date));
+      save(STORAGE_KEYS.weights, state.weights);
+      renderWeights();
+      markFolderFileImported(type, key);
+      wrap.remove();
+    });
+  } else {
+    fieldsEl.innerHTML = `
+      <input type="text" data-field="sport" placeholder="Tipo de entreno" value="Entreno">
+      <input type="number" data-field="minutes" placeholder="Minutos" value="${ocrData.minutes ?? ''}">
+      <input type="number" data-field="calories" placeholder="Kcal" value="${ocrData.calories ?? ''}">
+    `;
+    wrap.querySelector('[data-save]').addEventListener('click', () => {
+      const sport = fieldsEl.querySelector('[data-field="sport"]').value.trim() || 'Entreno';
+      const minutes = parseInt(fieldsEl.querySelector('[data-field="minutes"]').value, 10);
+      const calories = parseInt(fieldsEl.querySelector('[data-field="calories"]').value, 10);
+      if (!minutes || !calories) { alert('Pon minutos y kcal antes de guardar.'); return; }
+      state.workouts.push({
+        id: Date.now(),
+        date: new Date(file.lastModified || Date.now()).toISOString(),
+        sport, minutes, calories, exercises: [], photo: dataUrl
+      });
+      save(STORAGE_KEYS.workouts, state.workouts);
+      renderWorkouts();
+      markFolderFileImported(type, key);
+      wrap.remove();
+    });
+  }
+}
+
+async function setupFolderConnector(type, connectBtnId, scanBtnId, statusId) {
+  const connectBtn = document.getElementById(connectBtnId);
+  const scanBtn = document.getElementById(scanBtnId);
+  const statusEl = document.getElementById(statusId);
+
+  if (!supportsFolderPicker) {
+    connectBtn.disabled = true;
+    connectBtn.textContent = 'No disponible en este navegador';
+    statusEl.textContent = 'Conectar una carpeta solo funciona en Android con Chrome. En iPhone/Safari sigue usando el botón de adjuntar foto de arriba.';
+    return;
+  }
+
+  async function refreshStatus() {
+    const handle = await getFolderHandle(type);
+    if (!handle) {
+      statusEl.textContent = 'Ninguna carpeta conectada todavía.';
+      scanBtn.classList.add('hidden');
+      return;
+    }
+    scanBtn.classList.remove('hidden');
+    const perm = await handle.queryPermission({ mode: 'read' });
+    statusEl.textContent = perm === 'granted'
+      ? `Carpeta conectada: "${handle.name}".`
+      : `Carpeta "${handle.name}" conectada — pulsa "Buscar fotos nuevas" para reactivar el permiso.`;
+  }
+
+  connectBtn.addEventListener('click', async () => {
+    try {
+      const handle = await window.showDirectoryPicker();
+      await saveFolderHandle(type, handle);
+      await refreshStatus();
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('Error conectando carpeta', err);
+    }
+  });
+
+  scanBtn.addEventListener('click', () => scanFolder(type));
+
+  await refreshStatus();
 }
 
 /* ---------- NUTRICIÓN: PESO ---------- */
@@ -749,3 +1010,5 @@ renderMobility();
 renderMenuPlan();
 renderFoodLog();
 showRandomTip();
+setupFolderConnector('peso', 'connectWeightFolderBtn', 'scanWeightFolderBtn', 'weightFolderStatus');
+setupFolderConnector('entreno', 'connectWorkoutFolderBtn', 'scanWorkoutFolderBtn', 'workoutFolderStatus');

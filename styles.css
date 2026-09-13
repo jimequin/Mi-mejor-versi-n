@@ -502,6 +502,85 @@ input:focus, select:focus, button:focus{
   .title{ font-size: 19px; }
 }
 
+/* CARPETAS DE FOTOS DEL MÓVIL */
+.folder-scan-status{ margin-top: 8px; }
+.folder-queue{
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+  margin-top: 10px;
+}
+.folder-review-item{
+  display:flex;
+  gap: 10px;
+  border: 1px dashed var(--card-line);
+  border-radius: 10px;
+  padding: 10px;
+}
+.folder-review-thumb{
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  cursor: zoom-in;
+  border: 1px solid var(--card-line);
+}
+.folder-review-body{
+  flex: 1;
+  min-width: 0;
+  display:flex;
+  flex-direction:column;
+  gap: 6px;
+}
+.folder-review-name{
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-ocr-badge{
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--lime);
+}
+.folder-review-fields{
+  display:flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.folder-review-fields input{
+  width: auto;
+  flex: 1 1 70px;
+  min-width: 70px;
+}
+.folder-review-actions{
+  display:flex;
+  gap: 6px;
+}
+.btn-sm{
+  padding: 7px 10px;
+  font-size: 12.5px;
+  margin-top: 0;
+}
+.folder-review-item details{
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.folder-review-item summary{ cursor: pointer; }
+.folder-review-item pre{
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 6px;
+  margin: 4px 0 0;
+}
+
 /* MODAL FOTO */
 .photo-modal{
   position: fixed;

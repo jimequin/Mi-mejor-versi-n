@@ -61,6 +61,17 @@
         </form>
       </div>
 
+      <div class="card margin-card" id="weightFolderCard">
+        <p class="eyebrow">📁 Carpeta de fotos · Báscula</p>
+        <p class="hint-text">Conecta la carpeta del móvil donde guardas las fotos de la báscula (solo Android + Chrome). La app busca fotos nuevas e intenta leer el peso y la composición corporal — revisa siempre el número antes de guardar, la lectura automática puede fallar.</p>
+        <div class="row-form">
+          <button type="button" id="connectWeightFolderBtn" class="btn btn-ghost">📂 Conectar carpeta</button>
+          <button type="button" id="scanWeightFolderBtn" class="btn btn-ghost hidden">🔄 Buscar fotos nuevas</button>
+        </div>
+        <p class="hint-text folder-scan-status" id="weightFolderStatus"></p>
+        <div id="weightFolderQueue" class="folder-queue"></div>
+      </div>
+
       <div class="card margin-card">
         <p class="eyebrow">Tu altura (para calcular el IMC)</p>
         <div class="row-form">
@@ -134,6 +145,17 @@
           <span id="workoutPhotoName" class="file-name"></span>
           <button type="submit" class="btn btn-coral">Guardar entreno</button>
         </form>
+      </div>
+
+      <div class="card margin-card" id="workoutFolderCard">
+        <p class="eyebrow">📁 Carpeta de fotos · Entreno</p>
+        <p class="hint-text">Conecta la carpeta del móvil donde guardas las capturas del entreno (solo Android + Chrome). Intenta leer minutos y kcal si aparecen en la foto — revisa antes de guardar.</p>
+        <div class="row-form">
+          <button type="button" id="connectWorkoutFolderBtn" class="btn btn-ghost">📂 Conectar carpeta</button>
+          <button type="button" id="scanWorkoutFolderBtn" class="btn btn-ghost hidden">🔄 Buscar fotos nuevas</button>
+        </div>
+        <p class="hint-text folder-scan-status" id="workoutFolderStatus"></p>
+        <div id="workoutFolderQueue" class="folder-queue"></div>
       </div>
 
       <div class="card margin-card">
@@ -262,6 +284,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
