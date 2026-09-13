@@ -10,7 +10,8 @@ const STORAGE_KEYS = {
   shopping: 'cuaderno.shopping',
   planChecks: 'cuaderno.planChecks',
   foodLog: 'cuaderno.foodLog',
-  folderImports: 'cuaderno.folderImports'
+  folderImports: 'cuaderno.folderImports',
+  menuPlan: 'cuaderno.menuPlan'
 };
 
 function load(key, fallback) {
@@ -823,26 +824,75 @@ function renderWorkouts() {
   });
 }
 
-/* ---------- MENÚ SEMANAL SUGERIDO ---------- */
-const MENU_PLAN = [
-  { day: 'Lunes', comida: 'Arroz integral con pollo a la plancha, calabacín y pimiento salteado', cena: 'Crema de calabacín con huevo duro' },
-  { day: 'Martes', comida: 'Lentejas estofadas con verduras y taquitos de pavo', cena: 'Merluza al horno con espárragos' },
-  { day: 'Miércoles', comida: 'Pasta integral con atún, tomate y aceitunas', cena: 'Tortilla francesa con champiñones y ensalada' },
-  { day: 'Jueves', comida: 'Quinoa con garbanzos, espinacas y huevo', cena: 'Salmón al vapor con brócoli' },
-  { day: 'Viernes', comida: 'Arroz con verduras y gambas', cena: 'Revuelto de espárragos con jamón de pavo' },
-  { day: 'Sábado', comida: 'Pollo al curry con arroz basmati y verduras', cena: 'Ensalada de queso fresco, tomate y nueces' },
-  { day: 'Domingo', comida: 'Garbanzos con verdura (puchero de toda la vida)', cena: 'Pescado blanco a la plancha con ensalada' }
+/* ---------- MENÚ SEMANAL (editable: plato y gramos) ----------
+   El menú se guarda en localStorage para que lo puedas cambiar tú
+   mismo cada semana sin tener que pedírmelo en el chat. Reglas que
+   sigue el menú por defecto: comida siempre en tupper único, el
+   pescado va solo en la cena, y como mucho un día de pasta.
+------------------------------------------------------------------- */
+
+// Plantilla genérica de repuesto, por si quieres "resetear" el menú
+const DEFAULT_MENU_TEMPLATE = [
+  { day: 'Lunes', comida: { texto: 'Arroz integral con pollo a la plancha, calabacín y pimiento salteado', gramos: 350 }, cena: { texto: 'Crema de calabacín con huevo duro', gramos: 280 } },
+  { day: 'Martes', comida: { texto: 'Lentejas estofadas con verduras y taquitos de pavo', gramos: 350 }, cena: { texto: 'Merluza al horno con espárragos', gramos: 280 } },
+  { day: 'Miércoles', comida: { texto: 'Pasta integral con pollo, tomate y aceitunas', gramos: 350 }, cena: { texto: 'Tortilla francesa con champiñones y ensalada', gramos: 280 } },
+  { day: 'Jueves', comida: { texto: 'Quinoa con garbanzos, espinacas y huevo', gramos: 350 }, cena: { texto: 'Salmón al vapor con brócoli', gramos: 280 } },
+  { day: 'Viernes', comida: { texto: 'Arroz con verduras y pollo', gramos: 350 }, cena: { texto: 'Revuelto de espárragos con jamón de pavo', gramos: 280 } },
+  { day: 'Sábado', comida: { texto: 'Pollo al curry con arroz basmati y verduras', gramos: 350 }, cena: { texto: 'Ensalada de queso fresco, tomate y nueces', gramos: 280 } },
+  { day: 'Domingo', comida: { texto: 'Garbanzos con verdura (puchero de toda la vida)', gramos: 350 }, cena: { texto: 'Pescado blanco a la plancha con ensalada', gramos: 280 } }
 ];
 
+// Tu menú real de esta semana, hecho con lo que dijiste que tienes:
+// hamburguesa casera, huevos con gulas, salmón, pisto de tu madre,
+// salchichas congeladas, pollo al curry, lasaña, chili proteico,
+// albóndigas y verduras (pimiento y calabacín). Domingo = hoy.
+const THIS_WEEK_MENU = [
+  { day: 'Lunes', comida: { texto: 'Pollo al curry con arroz basmati y verduras', gramos: 350 }, cena: { texto: 'Tortilla francesa con champiñones y ensalada', gramos: 280 } },
+  { day: 'Martes', comida: { texto: 'Chili casero proteico', gramos: 350 }, cena: { texto: 'Revuelto de espárragos con jamón de pavo', gramos: 250 } },
+  { day: 'Miércoles', comida: { texto: 'Albóndigas caseras con pimiento y calabacín salteados', gramos: 350 }, cena: { texto: 'Salmón al horno con espárragos (teletrabajo)', gramos: 280 } },
+  { day: 'Jueves', comida: { texto: 'Pisto de mamá con huevo poché o taquitos de pollo', gramos: 350 }, cena: { texto: 'Ensalada de queso fresco, tomate y nueces', gramos: 280 } },
+  { day: 'Viernes', comida: { texto: 'Lentejas estofadas con verduras y taquitos de pavo', gramos: 350 }, cena: { texto: 'Salchichas a la plancha con pimiento y ensalada', gramos: 280 } },
+  { day: 'Sábado', comida: { texto: 'Lasaña casera 🍝 (único día con pasta esta semana)', gramos: 350 }, cena: { texto: 'Crema de calabacín con huevo duro', gramos: 280 } },
+  { day: 'Domingo', comida: { texto: 'Hamburguesa casera 🍔 (hoy)', gramos: 300 }, cena: { texto: 'Huevos con gulas 🍳 (hoy)', gramos: 250 } }
+];
+
+let menuPlanState = load(STORAGE_KEYS.menuPlan, null) || JSON.parse(JSON.stringify(THIS_WEEK_MENU));
+
 function renderMenuPlan() {
-  document.getElementById('menuPlan').innerHTML = MENU_PLAN.map(d => `
+  document.getElementById('menuPlan').innerHTML = menuPlanState.map((d, idx) => `
     <div class="menu-day">
       <div class="menu-day-title">${d.day}</div>
-      <div class="menu-day-line"><b>COMIDA</b> ${d.comida}</div>
-      <div class="menu-day-line cena"><b>CENA</b> ${d.cena}</div>
+      <label class="menu-field-label">Comida</label>
+      <div class="menu-field-row">
+        <input type="text" class="menu-text-input" data-idx="${idx}" data-meal="comida" data-field="texto" value="${d.comida.texto}">
+        <input type="number" class="menu-grams-input" data-idx="${idx}" data-meal="comida" data-field="gramos" value="${d.comida.gramos}" inputmode="numeric">
+        <span class="menu-grams-unit">g</span>
+      </div>
+      <label class="menu-field-label cena">Cena</label>
+      <div class="menu-field-row">
+        <input type="text" class="menu-text-input" data-idx="${idx}" data-meal="cena" data-field="texto" value="${d.cena.texto}">
+        <input type="number" class="menu-grams-input" data-idx="${idx}" data-meal="cena" data-field="gramos" value="${d.cena.gramos}" inputmode="numeric">
+        <span class="menu-grams-unit">g</span>
+      </div>
     </div>
   `).join('');
+
+  document.querySelectorAll('#menuPlan input').forEach(input => {
+    input.addEventListener('change', () => {
+      const { idx, meal, field } = input.dataset;
+      const value = field === 'gramos' ? (parseInt(input.value, 10) || 0) : input.value;
+      menuPlanState[idx][meal][field] = value;
+      save(STORAGE_KEYS.menuPlan, menuPlanState);
+    });
+  });
 }
+
+document.getElementById('resetMenuBtn').addEventListener('click', () => {
+  if (!confirm('¿Restaurar la plantilla genérica? Perderás el menú que has editado.')) return;
+  menuPlanState = JSON.parse(JSON.stringify(DEFAULT_MENU_TEMPLATE));
+  save(STORAGE_KEYS.menuPlan, menuPlanState);
+  renderMenuPlan();
+});
 
 /* ---------- DIARIO DE COMIDAS ---------- */
 // Valores por cada 100g (aprox., fuente: tablas nutricionales estándar)
