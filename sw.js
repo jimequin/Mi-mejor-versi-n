@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuaderno-vallecas-v1';
+const CACHE_NAME = 'cuaderno-vallecas-v2';
 const FILES_TO_CACHE = [
   './',
   './index.html',
@@ -28,7 +28,17 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   // Solo cacheamos peticiones GET del propio origen (no el CDN de Chart.js ni Google Fonts)
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) return;
+  // "Red primero": si hay internet, coge siempre la versión más nueva del
+  // servidor (y actualiza la copia guardada). Solo si no hay conexión,
+  // usa la última copia guardada — así una actualización de la app no se
+  // queda "pillada" en una versión vieja mientras tengas internet.
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
