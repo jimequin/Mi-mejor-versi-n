@@ -492,6 +492,17 @@ input:focus, select:focus, button:focus{
 .shopping-list .del{
   background:none; border:none; color: var(--muted); cursor:pointer; font-size: 16px;
 }
+.shopping-list li.shopping-store-header{
+  display:block;
+  border-bottom: none;
+  padding: 10px 0 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lime);
+}
+.shopping-list li.shopping-store-header:first-child{ padding-top: 0; }
 .checkbox{
   width: 20px; height: 20px;
   border-radius: 6px;

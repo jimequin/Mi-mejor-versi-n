@@ -197,26 +197,37 @@ function markFolderFileImported(type, key) {
   pendingFolderKeys[type].delete(key);
 }
 
-// Intenta sacar peso y composición corporal del texto leído en la foto
+// Intenta sacar peso y composición corporal del texto leído en la foto.
+// Muchas apps de báscula ponen el peso total suelto (sin la palabra
+// "peso" al lado) y dan el músculo en kg en vez de en % — por eso el
+// peso tiene un plan B, y músculo/ósea no exigen ningún símbolo detrás.
 function parseWeightOcr(text) {
   const norm = text.toLowerCase().replace(/,/g, '.');
+  const num = '(\\d{1,3}(?:\\.\\d{1,2})?)';
   const result = {};
   const patterns = {
-    kg: /peso[^0-9]{0,10}(\d{2,3}(?:\.\d)?)/,
-    fat: /gras(?:a)?(?:\s*corporal)?[^0-9%]{0,10}(\d{1,2}(?:\.\d)?)\s*%/,
-    muscle: /m[uú]scul[oa][^0-9%]{0,10}(\d{1,2}(?:\.\d)?)\s*%/,
-    water: /agua[^0-9%]{0,10}(\d{1,2}(?:\.\d)?)\s*%/,
-    visceral: /visceral[^0-9]{0,10}(\d{1,2}(?:\.\d)?)/,
-    bone: /[oó]se[a]?[^0-9]{0,10}(\d{1,2}(?:\.\d)?)/
+    kg: new RegExp('peso[^0-9]{0,10}' + num),
+    fat: new RegExp('gras[ao](?:\\s*corporal)?[^0-9%]{0,10}' + num + '\\s*%'),
+    muscle: new RegExp('m[uú]scul[oa][^0-9]{0,10}' + num),
+    water: new RegExp('agua[^0-9%]{0,10}' + num + '\\s*%'),
+    visceral: new RegExp('visceral[^0-9]{0,10}' + num),
+    bone: new RegExp('[oó]se[a]?[^0-9]{0,10}' + num)
   };
   for (const [key, re] of Object.entries(patterns)) {
     const m = norm.match(re);
     if (m) result[key] = parseFloat(m[1]);
   }
-  // Si no encuentra la palabra "peso", coge el primer número que parezca un peso de persona (30-200kg)
+  // Si no encuentra la palabra "peso", coge el primer número seguido de
+  // "kg" que no sea el de masa ósea ni músculo (para no confundirlos).
   if (result.kg == null) {
-    const nums = (norm.match(/\d{2,3}(?:\.\d)?/g) || []).map(parseFloat);
-    result.kg = nums.find(n => n >= 30 && n <= 200) || null;
+    const kgRe = new RegExp(num + '\\s*kg', 'g');
+    let m;
+    while ((m = kgRe.exec(norm))) {
+      const before = norm.slice(Math.max(0, m.index - 15), m.index);
+      if (/(ose|muscul)/.test(before)) continue;
+      const val = parseFloat(m[1]);
+      if (val >= 30 && val <= 200) { result.kg = val; break; }
+    }
   }
   return result;
 }
@@ -267,9 +278,13 @@ async function scanFolder(type) {
 
 async function addFolderReviewItem(type, key, file) {
   const queueEl = document.getElementById(type === 'peso' ? 'weightFolderQueue' : 'workoutFolderQueue');
-  let dataUrl;
+  let dataUrl, ocrImageUrl;
   try {
     dataUrl = await fileToCompressedDataUrl(file, 640, 0.7);
+    // Para leer el texto usamos una versión bastante más grande que la
+    // miniatura que se guarda — con 640px las letras pequeñas de una
+    // captura de pantalla se ven borrosas y el OCR falla mucho más.
+    ocrImageUrl = await fileToCompressedDataUrl(file, 1600, 0.9);
   } catch (e) {
     console.error('No se pudo abrir la foto', file.name, e);
     return; // formato no soportado por el navegador (p.ej. algún .heic) — se reintentará en el próximo escaneo
@@ -287,7 +302,7 @@ async function addFolderReviewItem(type, key, file) {
         <button type="button" class="btn btn-lime btn-sm" data-save>Guardar</button>
         <button type="button" class="btn btn-ghost btn-sm" data-discard>Descartar</button>
       </div>
-      <details><summary>Texto detectado</summary><pre data-ocr-text>—</pre></details>
+      <details open><summary>Texto detectado (por si quieres leerlo tú)</summary><pre data-ocr-text>—</pre></details>
     </div>
   `;
   queueEl.appendChild(wrap);
@@ -301,7 +316,7 @@ async function addFolderReviewItem(type, key, file) {
   const fieldsEl = wrap.querySelector('.folder-review-fields');
   let ocrData = {};
   try {
-    const { data } = await Tesseract.recognize(dataUrl, 'eng');
+    const { data } = await Tesseract.recognize(ocrImageUrl, 'eng');
     wrap.querySelector('[data-ocr-text]').textContent = data.text.trim() || '(sin texto detectado)';
     ocrData = type === 'peso' ? parseWeightOcr(data.text || '') : parseWorkoutOcr(data.text || '');
     badgeEl.textContent = Object.keys(ocrData).some(k => ocrData[k] != null)
@@ -1217,6 +1232,125 @@ const itemForm = document.getElementById('itemForm');
 const shoppingListEl = document.getElementById('shoppingList');
 const shoppingEmpty = document.getElementById('shoppingEmpty');
 
+// Precio aproximado por 100g (o por unidad) y súper habitual. Son
+// precios orientativos (no leemos webs de súpers en tiempo real, ver
+// README) — sirven para hacerte una idea del gasto, no son exactos.
+const PRECIO_DB = [
+  { keys: ['pollo'], label: 'Pollo', eur100g: 0.9, store: 'Mercadona' },
+  { keys: ['arroz'], label: 'Arroz', eur100g: 0.15, store: 'Mercadona' },
+  { keys: ['calabacin', 'calabacín'], label: 'Calabacín', eur100g: 0.2, store: 'Mercadona' },
+  { keys: ['pimiento'], label: 'Pimiento', eur100g: 0.3, store: 'Mercadona' },
+  { keys: ['cebolla'], label: 'Cebolla', eur100g: 0.15, store: 'Mercadona' },
+  { keys: ['huevo'], label: 'Huevos', eurUd: 0.25, store: 'Mercadona' },
+  { keys: ['champin', 'champiñ'], label: 'Champiñones', eur100g: 0.45, store: 'Mercadona' },
+  { keys: ['ensalada', 'lechuga'], label: 'Ensalada/lechuga', eur100g: 0.3, store: 'Mercadona' },
+  { keys: ['chili'], label: 'Chili (ingredientes)', eur100g: 0.6, store: 'Mercadona' },
+  { keys: ['albondiga', 'albóndiga'], label: 'Albóndigas', eurUd: 0.35, store: 'Mercadona' },
+  { keys: ['ñoqui', 'noqui'], label: 'Ñoquis', eur100g: 0.5, store: 'Lidl' },
+  { keys: ['pisto'], label: 'Pisto (ingredientes)', eur100g: 0.4, store: 'Mercadona' },
+  { keys: ['hamburguesa'], label: 'Hamburguesa casera', eurUd: 1.2, store: 'Mercadona' },
+  { keys: ['lasaña', 'lasagna', 'lasana'], label: 'Lasaña', eur100g: 0.9, store: 'Lidl' },
+  { keys: ['salchicha'], label: 'Salchichas', eur100g: 0.7, store: 'Lidl' },
+  { keys: ['gulas'], label: 'Gulas', eur100g: 1.6, store: 'Mercadona' },
+  { keys: ['berenjena'], label: 'Berenjena', eur100g: 0.35, store: 'Mercadona' },
+  { keys: ['crema'], label: 'Base para crema de verduras', eur100g: 0.35, store: 'Mercadona' },
+  { keys: ['salmon', 'salmón'], label: 'Salmón', eur100g: 1.8, store: 'Mercadona' },
+  { keys: ['lenteja'], label: 'Lentejas', eur100g: 0.25, store: 'Mercadona' },
+  { keys: ['garbanzo'], label: 'Garbanzos', eur100g: 0.25, store: 'Mercadona' },
+  { keys: ['queso'], label: 'Queso fresco', eur100g: 0.8, store: 'Mercadona' },
+  { keys: ['nuez', 'nueces'], label: 'Nueces', eur100g: 1.5, store: 'Carrefour Express' },
+  { keys: ['tomate'], label: 'Tomate', eur100g: 0.25, store: 'Mercadona' },
+  { keys: ['merluza'], label: 'Merluza', eur100g: 1.4, store: 'Mercadona' },
+  { keys: ['pescado blanco'], label: 'Pescado blanco', eur100g: 1.2, store: 'Mercadona' },
+  { keys: ['quinoa'], label: 'Quinoa', eur100g: 0.7, store: 'Carrefour Express' },
+  { keys: ['espinaca'], label: 'Espinacas', eur100g: 0.3, store: 'Mercadona' },
+  { keys: ['brocoli', 'brócoli'], label: 'Brócoli', eur100g: 0.3, store: 'Mercadona' }
+];
+
+function matchAllPrices(texto) {
+  const norm = normalizeText(texto);
+  return PRECIO_DB.filter(item => item.keys.some(k => norm.includes(normalizeText(k))));
+}
+
+// Suma los ingredientes de las 7 comidas y cenas de la pestaña Menús,
+// reparte a partes iguales cuando una línea mezcla varios alimentos
+// reconocidos (p.ej. "pimiento y cebolla"), y genera un producto por
+// alimento con cantidad total, súper y precio estimado.
+function generateShoppingListFromMenu() {
+  const totals = {}; // key del alimento -> { grams, uds, price }
+  const sinReconocer = new Set();
+
+  menuPlanState.forEach(d => {
+    ['comida', 'cena'].forEach(mealKey => {
+      (d[mealKey] || []).forEach(ing => {
+        if (!ing.texto || !ing.cantidad) return;
+        const grams = parseCantidadGrams(ing.cantidad, null) || 0;
+        const udsMatch = ing.cantidad.match(/^([\d.,]+)\s*(uds?|unidades?)\b/i);
+        const uds = udsMatch ? parseFloat(udsMatch[1].replace(',', '.')) : 0;
+
+        const hits = matchAllPrices(ing.texto);
+        if (!hits.length) { sinReconocer.add(ing.texto); return; }
+
+        const share = 1 / hits.length;
+        hits.forEach(hit => {
+          const key = hit.keys[0];
+          if (!totals[key]) totals[key] = { grams: 0, uds: 0, price: hit };
+          totals[key].grams += grams * share;
+          totals[key].uds += uds * share;
+        });
+      });
+    });
+  });
+
+  // Quita los productos generados en una tanda anterior, pero conserva
+  // los que hayas añadido tú a mano.
+  state.shopping = state.shopping.filter(i => !i.fromMenu);
+
+  let totalEstimado = 0;
+  Object.values(totals).forEach(({ grams, uds, price }) => {
+    let qtyLabel, importe = null;
+    if (grams > 0) {
+      qtyLabel = `${Math.round(grams)} g`;
+      if (price.eur100g) importe = price.eur100g * (grams / 100);
+    } else if (uds > 0) {
+      qtyLabel = `${Math.round(uds)} uds`;
+      if (price.eurUd) importe = price.eurUd * uds;
+    } else {
+      qtyLabel = '';
+    }
+    if (importe != null) totalEstimado += importe;
+    const note = [qtyLabel, importe != null ? `≈${importe.toFixed(2)}€` : 'precio no estimado']
+      .filter(Boolean).join(' · ');
+    state.shopping.push({
+      id: Date.now() + Math.random(),
+      name: price.label,
+      store: price.store,
+      note,
+      done: false,
+      fromMenu: true
+    });
+  });
+
+  sinReconocer.forEach(texto => {
+    state.shopping.push({
+      id: Date.now() + Math.random(),
+      name: texto,
+      store: 'Mercadona',
+      note: 'revisa cantidad y precio a mano',
+      done: false,
+      fromMenu: true
+    });
+  });
+
+  save(STORAGE_KEYS.shopping, state.shopping);
+  renderShopping();
+
+  const statusEl = document.getElementById('generateShoppingStatus');
+  statusEl.textContent = `Lista generada — total estimado ≈${totalEstimado.toFixed(2)}€ (no cuenta lo que no se pudo calcular). Revisa cantidades y súper antes de ir a comprar.`;
+}
+
+document.getElementById('generateShoppingBtn').addEventListener('click', generateShoppingListFromMenu);
+
 itemForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const name = document.getElementById('itemName').value.trim();
@@ -1244,15 +1378,26 @@ function deleteItem(id) {
 
 function renderShopping() {
   shoppingEmpty.style.display = state.shopping.length ? 'none' : 'block';
-  shoppingListEl.innerHTML = state.shopping.map(item => `
-    <li class="${item.done ? 'done' : ''}">
-      <button class="checkbox ${item.done ? 'checked' : ''}" onclick="toggleItem(${item.id})"></button>
-      <div class="item-main">
-        <div class="item-name">${item.name}</div>
-        <div class="item-meta">${item.store}${item.note ? ' · ' + item.note : ''}</div>
-      </div>
-      <button class="del" onclick="deleteItem(${item.id})">✕</button>
-    </li>
+
+  // Agrupado por súper, para poder ir tienda por tienda.
+  const stores = ['Mercadona', 'Lidl', 'Carrefour Express'];
+  const byStore = stores.map(store => ({
+    store,
+    items: state.shopping.filter(i => (i.store || 'Mercadona') === store)
+  })).filter(g => g.items.length);
+
+  shoppingListEl.innerHTML = byStore.map(group => `
+    <li class="shopping-store-header">${group.store}</li>
+    ${group.items.map(item => `
+      <li class="${item.done ? 'done' : ''}">
+        <button class="checkbox ${item.done ? 'checked' : ''}" onclick="toggleItem(${item.id})"></button>
+        <div class="item-main">
+          <div class="item-name">${item.name}</div>
+          <div class="item-meta">${item.note || ''}</div>
+        </div>
+        <button class="del" onclick="deleteItem(${item.id})">✕</button>
+      </li>
+    `).join('')}
   `).join('');
 }
 
