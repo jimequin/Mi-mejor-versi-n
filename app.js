@@ -14,7 +14,10 @@ const STORAGE_KEYS = {
   menuPlan: 'cuaderno.menuPlan',
   menuPlanNext: 'cuaderno.menuPlanNext',
   menuHistory: 'cuaderno.menuHistory',
-  goals: 'cuaderno.goals'
+  goals: 'cuaderno.goals',
+  planSeries: 'cuaderno.planSeries',
+  planCompletions: 'cuaderno.planCompletions',
+  completionCounted: 'cuaderno.completionCounted'
 };
 
 function load(key, fallback) {
@@ -636,9 +639,14 @@ const WEEKLY_PLAN = [
   { key: 'dom', label: 'Domingo', types: ['gluteo'] }
 ];
 
+// El glúteo es un circuito de fuerza: se hace en series (rondas
+// completas). Al marcar el último ejercicio, si aún no llegaste a las
+// series objetivo, se desmarca todo para la siguiente ronda y suma 1.
+const SERIES_TARGET = { gluteo: 4 };
+
 const PLAN_EXERCISES = {
   gluteo: {
-    title: '💪 Glúteo · 3-4 series, descanso 45-60s',
+    title: '💪 Glúteo · 4 series, descanso 45-60s',
     items: [
       'Búlgara sin peso, pie en la cama — 10-12 reps/pierna',
       'Sentadilla con goma sobre rodillas — 15-20 reps',
@@ -667,6 +675,12 @@ const MOBILITY_HIP = [
 ];
 
 let planChecks = load(STORAGE_KEYS.planChecks, {});
+// Series completadas hoy de glúteo (por día, se reinicia cada día nuevo)
+let planSeries = load(STORAGE_KEYS.planSeries, {});
+// Cuántas veces en total has completado cada rutina de movilidad (de por vida)
+let planCompletions = load(STORAGE_KEYS.planCompletions, { squat: 0, hip: 0 });
+// Qué días concretos ya se contaron, para no sumar dos veces el mismo día
+let completionCounted = load(STORAGE_KEYS.completionCounted, []);
 
 function getMondayOfCurrentWeek() {
   const d = new Date();
@@ -687,21 +701,45 @@ function todayKey() {
 
 let selectedPlanDay = (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1); // índice 0=lunes
 
-function toggleCheck(listKey, itemIdx) {
+// mode: undefined (checklist normal, sin contador) | 'series' (glúteo:
+// al completar todos los ejercicios suma 1 serie y reinicia, hasta el
+// objetivo) | 'completion' (movilidad: al completar todos los
+// ejercicios suma 1 al contador de "veces hecho", una vez por día).
+function toggleCheck(listKey, itemIdx, totalItems, mode, typeKey) {
   if (!planChecks[listKey]) planChecks[listKey] = [];
   const pos = planChecks[listKey].indexOf(itemIdx);
   if (pos === -1) planChecks[listKey].push(itemIdx);
   else planChecks[listKey].splice(pos, 1);
+
+  const allChecked = totalItems && planChecks[listKey].length === totalItems;
+  if (allChecked && mode === 'series') {
+    const target = SERIES_TARGET[typeKey] || 4;
+    const done = planSeries[listKey] || 0;
+    if (done < target) {
+      planSeries[listKey] = done + 1;
+      save(STORAGE_KEYS.planSeries, planSeries);
+      if (planSeries[listKey] < target) planChecks[listKey] = []; // ronda siguiente
+    }
+  } else if (allChecked && mode === 'completion') {
+    if (!completionCounted.includes(listKey)) {
+      completionCounted.push(listKey);
+      planCompletions[typeKey] = (planCompletions[typeKey] || 0) + 1;
+      save(STORAGE_KEYS.completionCounted, completionCounted);
+      save(STORAGE_KEYS.planCompletions, planCompletions);
+    }
+  }
+
   save(STORAGE_KEYS.planChecks, planChecks);
   renderPlan();
   renderMobility();
 }
 
-function renderCheckList(container, items, listKey) {
+function renderCheckList(container, items, listKey, mode, typeKey) {
   const checked = planChecks[listKey] || [];
   container.innerHTML = items.map((text, idx) => `
     <li class="${checked.includes(idx) ? 'plan-checked' : ''}">
-      <button class="plan-check ${checked.includes(idx) ? 'checked' : ''}" onclick="toggleCheck('${listKey}', ${idx})"></button>
+      <button class="plan-check ${checked.includes(idx) ? 'checked' : ''}"
+        onclick="toggleCheck('${listKey}', ${idx}, ${items.length}, '${mode}', '${typeKey}')"></button>
       <span class="plan-text">${text}</span>
     </li>
   `).join('');
@@ -737,13 +775,18 @@ function renderPlan() {
     const plan = PLAN_EXERCISES[t];
     const listKey = 'day-' + t + '-' + dateKey;
     const checked = planChecks[listKey] || [];
+    const mode = t === 'gluteo' ? 'series' : 'completion';
     const items = plan.items.map((text, idx) => `
       <li class="${checked.includes(idx) ? 'plan-checked' : ''}">
-        <button class="plan-check ${checked.includes(idx) ? 'checked' : ''}" onclick="toggleCheck('${listKey}', ${idx})"></button>
+        <button class="plan-check ${checked.includes(idx) ? 'checked' : ''}"
+          onclick="toggleCheck('${listKey}', ${idx}, ${plan.items.length}, '${mode}', '${t}')"></button>
         <span class="plan-text">${text}</span>
       </li>
     `).join('');
-    return `<p class="plan-block-title">${plan.title}</p><ul class="plan-list">${items}</ul>`;
+    const counter = mode === 'series'
+      ? `<p class="plan-counter">Series de hoy: ${planSeries[listKey] || 0}/${SERIES_TARGET[t] || 4} ${(planSeries[listKey] || 0) >= (SERIES_TARGET[t] || 4) ? '🎉' : ''}</p>`
+      : `<p class="plan-counter">Hecho ${planCompletions[t] || 0} veces en total</p>`;
+    return `<p class="plan-block-title">${plan.title}</p>${counter}<ul class="plan-list">${items}</ul>`;
   }).join('');
 }
 
@@ -753,7 +796,8 @@ function selectPlanDay(idx) {
 }
 
 function renderMobility() {
-  renderCheckList(document.getElementById('mobilityHipList'), MOBILITY_HIP, 'mobility-hip-' + todayKey());
+  document.getElementById('mobilityHipCounter').textContent = `Hecho ${planCompletions.hip || 0} veces en total`;
+  renderCheckList(document.getElementById('mobilityHipList'), MOBILITY_HIP, 'mobility-hip-' + todayKey(), 'completion', 'hip');
 }
 
 /* ---------- ENTRENOS (registro libre) ---------- */
@@ -794,6 +838,22 @@ function getLastWeight() {
   return state.weights[state.weights.length - 1].kg;
 }
 
+// Metabolismo basal (kcal/día) para personalizar el cálculo, en este
+// orden de preferencia: 1) el que te da tu báscula (el más real),
+// 2) estimado a partir de tu peso y tu % de grasa (fórmula Katch-McArdle),
+// 3) estimado a partir de tu peso y tu altura (fórmula genérica, menos
+// precisa porque no sabe tu edad exacta). Si no hay ningún dato, no se
+// usa metabolismo y se cae en el cálculo simple de siempre.
+function estimateBMR(kg) {
+  const lastMetab = lastWeightWith('metabolism');
+  if (lastMetab) return lastMetab.metabolism;
+  const lastFat = lastWeightWith('fat');
+  if (lastFat) return 370 + 21.6 * (kg * (1 - lastFat.fat / 100));
+  const height = load('cuaderno.height', null);
+  if (height) return 10 * kg + 6.25 * height - 5 * 30 - 78; // asume 30 años, sin dato de sexo
+  return null;
+}
+
 function estimateCalories() {
   const select = document.getElementById('sportInput');
   const met = parseFloat(select.selectedOptions[0]?.dataset.met) || 6;
@@ -803,9 +863,19 @@ function estimateCalories() {
     return null;
   }
   const kg = getLastWeight();
-  // Fórmula estándar: kcal = MET x peso(kg) x horas
-  const kcal = Math.round(met * kg * (minutes / 60));
-  calorieHint.textContent = `Estimado con tu último peso registrado (${kg} kg).`;
+  const hours = minutes / 60;
+  const bmr = estimateBMR(kg);
+  let kcal, hint;
+  if (bmr) {
+    // Tu metabolismo basal repartido en esas horas, más el extra que
+    // quemas por hacer ejercicio por encima de estar en reposo.
+    kcal = Math.round((bmr / 24) * hours + (met - 1) * kg * hours);
+    hint = `Estimado con tu peso (${kg} kg) y tu metabolismo basal (${Math.round(bmr)} kcal/día).`;
+  } else {
+    kcal = Math.round(met * kg * hours);
+    hint = `Estimado solo con tu peso (${kg} kg). Añade tu altura en Nutrición o una medición con grasa% para un cálculo más preciso.`;
+  }
+  calorieHint.textContent = hint;
   return kcal;
 }
 
@@ -1897,7 +1967,56 @@ function renderFoodHistoryCharts() {
   });
 }
 
-let fatChartInstance, muscleChartInstance, workoutHistoryChartInstance, sessionsHistoryChartInstance, calorieIntakeChartInstance, proteinIntakeChartInstance;
+// Junta, por día, lo consumido (diario de comidas) y lo gastado (tu
+// metabolismo basal repartido ese día + las kcal de los entrenos que
+// hicieras ese día). El metabolismo se calcula igual que en Entrenos
+// (báscula real > grasa% > altura), con tu peso más reciente.
+function aggregateBalanceByDay(maxDays = 30) {
+  const map = {};
+  (state.foodLog || []).forEach(e => {
+    const key = e.date.slice(0, 10);
+    if (!map[key]) map[key] = { consumed: 0, burned: 0 };
+    map[key].consumed += e.kcal;
+  });
+  state.workouts.forEach(w => {
+    const key = w.date.slice(0, 10);
+    if (!map[key]) map[key] = { consumed: 0, burned: 0 };
+    map[key].burned += w.calories;
+  });
+  const bmr = estimateBMR(getLastWeight()) || 0;
+  const days = Object.keys(map).sort().slice(-maxDays);
+  return {
+    labels: days.map(k => new Date(k).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })),
+    consumed: days.map(k => Math.round(map[k].consumed)),
+    burned: days.map(k => Math.round(map[k].burned + bmr))
+  };
+}
+
+function renderBalanceChart() {
+  const { labels, consumed, burned } = aggregateBalanceByDay();
+  document.getElementById('graficosBalanceEmpty').style.display = labels.length ? 'none' : 'block';
+  const ctx = document.getElementById('balanceChart');
+  if (balanceChartInstance) balanceChartInstance.destroy();
+  balanceChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Consumidas', data: consumed, backgroundColor: '#FF6B4A', borderRadius: 4 },
+        { label: 'Gastadas', data: burned, backgroundColor: '#C6F135', borderRadius: 4 }
+      ]
+    },
+    options: {
+      plugins: { legend: { display: true, labels: { color: '#8A9298', font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { color: '#2A3338' } }
+      }
+    }
+  });
+}
+
+let fatChartInstance, muscleChartInstance, workoutHistoryChartInstance, sessionsHistoryChartInstance, calorieIntakeChartInstance, proteinIntakeChartInstance, balanceChartInstance;
 
 function renderGraficos() {
   renderGoalStatus();
@@ -1905,6 +2024,7 @@ function renderGraficos() {
   renderMuscleChart();
   renderWorkoutHistoryCharts();
   renderFoodHistoryCharts();
+  renderBalanceChart();
 }
 
 /* ---------- INICIO ---------- */

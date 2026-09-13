@@ -377,6 +377,12 @@ input:focus, select:focus, button:focus{
   font-size: 13.5px;
   margin: 0;
 }
+.plan-counter{
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--lime);
+  margin: -4px 0 8px;
+}
 
 /* EJERCICIOS DENTRO DEL ENTRENO */
 .exercise-rows{

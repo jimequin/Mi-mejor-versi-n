@@ -115,6 +115,7 @@
       <div class="card margin-card">
         <p class="eyebrow">🧘 Movilidad de cadera · 10 min</p>
         <p class="hint-text">Todos los días — se marca sola, no depende del tipo de día.</p>
+        <p class="plan-counter" id="mobilityHipCounter"></p>
         <ul id="mobilityHipList" class="plan-list"></ul>
       </div>
 
@@ -258,6 +259,13 @@
       <div class="card margin-card">
         <p class="eyebrow">Proteína diaria consumida</p>
         <canvas id="proteinIntakeChart" height="160"></canvas>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">⚖️ Balance calórico diario</p>
+        <p class="hint-text">Consumidas (diario de comidas) vs. gastadas (tu metabolismo basal + entrenos de ese día). Si gastadas &gt; consumidas, ese día hubo déficit.</p>
+        <canvas id="balanceChart" height="160"></canvas>
+        <p class="empty-msg" id="graficosBalanceEmpty">Aún no hay suficientes datos (anota comidas y/o entrenos).</p>
       </div>
     </section>
 
