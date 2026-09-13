@@ -11,7 +11,8 @@ const STORAGE_KEYS = {
   planChecks: 'cuaderno.planChecks',
   foodLog: 'cuaderno.foodLog',
   folderImports: 'cuaderno.folderImports',
-  menuPlan: 'cuaderno.menuPlan'
+  menuPlan: 'cuaderno.menuPlan',
+  menuPlanNext: 'cuaderno.menuPlanNext'
 };
 
 function load(key, fallback) {
@@ -959,7 +960,19 @@ function normalizeMenuPlan(plan) {
   return plan.map(d => ({ day: d.day, comida: toList(d.comida), cena: toList(d.cena) }));
 }
 
-let menuPlanState = normalizeMenuPlan(load(STORAGE_KEYS.menuPlan, null) || THIS_WEEK_MENU);
+// Dos semanas editables: la de esta semana y la de la que viene, para
+// poder adelantarte y cambiar algo si no te gusta o ves que algo sale
+// muy caro antes de que llegue esa semana. "next" arranca con la
+// plantilla genérica hasta que la edites con lo que vayas a comer.
+const menuWeeks = {
+  current: normalizeMenuPlan(load(STORAGE_KEYS.menuPlan, null) || THIS_WEEK_MENU),
+  next: normalizeMenuPlan(load(STORAGE_KEYS.menuPlanNext, null) || DEFAULT_MENU_TEMPLATE)
+};
+const MENU_WEEK_STORAGE_KEY = { current: STORAGE_KEYS.menuPlan, next: STORAGE_KEYS.menuPlanNext };
+let activeMenuWeek = 'current';
+
+function getMenuPlanState() { return menuWeeks[activeMenuWeek]; }
+function saveMenuPlanState() { save(MENU_WEEK_STORAGE_KEY[activeMenuWeek], menuWeeks[activeMenuWeek]); }
 
 // Diccionario aproximado (kcal/proteína/carbos/grasa por 100g) para poder
 // calcular las kcal y macros del día a partir de los ingredientes y sus
@@ -1073,7 +1086,12 @@ function renderDayTotals(d) {
 }
 
 function renderMenuPlan() {
-  document.getElementById('menuPlan').innerHTML = menuPlanState.map((d, dayIdx) => `
+  document.querySelectorAll('#menuWeekPills .week-pill').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.week === activeMenuWeek);
+  });
+
+  const plan = getMenuPlanState();
+  document.getElementById('menuPlan').innerHTML = plan.map((d, dayIdx) => `
     <div class="menu-day">
       <div class="menu-day-title">${d.day}</div>
       ${renderMealBlock(d.comida, dayIdx, 'comida', 'Comida')}
@@ -1085,33 +1103,41 @@ function renderMenuPlan() {
   document.querySelectorAll('.menu-ingredient-row input').forEach(input => {
     input.addEventListener('change', () => {
       const { day, meal, item, field } = input.dataset;
-      menuPlanState[day][meal][item][field] = input.value;
-      save(STORAGE_KEYS.menuPlan, menuPlanState);
+      getMenuPlanState()[day][meal][item][field] = input.value;
+      saveMenuPlanState();
     });
   });
   document.querySelectorAll('[data-add-ingredient]').forEach(btn => {
     btn.addEventListener('click', () => {
       const { day, meal } = btn.dataset;
-      menuPlanState[day][meal].push({ texto: '', cantidad: '' });
-      save(STORAGE_KEYS.menuPlan, menuPlanState);
+      getMenuPlanState()[day][meal].push({ texto: '', cantidad: '' });
+      saveMenuPlanState();
       renderMenuPlan();
     });
   });
   document.querySelectorAll('[data-remove-ingredient]').forEach(btn => {
     btn.addEventListener('click', () => {
       const { day, meal, item } = btn.dataset;
-      menuPlanState[day][meal].splice(item, 1);
-      if (!menuPlanState[day][meal].length) menuPlanState[day][meal].push({ texto: '', cantidad: '' });
-      save(STORAGE_KEYS.menuPlan, menuPlanState);
+      const meals = getMenuPlanState()[day][meal];
+      meals.splice(item, 1);
+      if (!meals.length) meals.push({ texto: '', cantidad: '' });
+      saveMenuPlanState();
       renderMenuPlan();
     });
   });
 }
 
+document.querySelectorAll('#menuWeekPills .week-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeMenuWeek = btn.dataset.week;
+    renderMenuPlan();
+  });
+});
+
 document.getElementById('resetMenuBtn').addEventListener('click', () => {
-  if (!confirm('¿Restaurar la plantilla genérica? Perderás el menú que has editado.')) return;
-  menuPlanState = normalizeMenuPlan(JSON.parse(JSON.stringify(DEFAULT_MENU_TEMPLATE)));
-  save(STORAGE_KEYS.menuPlan, menuPlanState);
+  if (!confirm('¿Restaurar la plantilla genérica de esta semana? Perderás el menú que has editado.')) return;
+  menuWeeks[activeMenuWeek] = normalizeMenuPlan(JSON.parse(JSON.stringify(DEFAULT_MENU_TEMPLATE)));
+  saveMenuPlanState();
   renderMenuPlan();
 });
 
@@ -1280,7 +1306,7 @@ function generateShoppingListFromMenu() {
   const totals = {}; // key del alimento -> { grams, uds, price }
   const sinReconocer = new Set();
 
-  menuPlanState.forEach(d => {
+  getMenuPlanState().forEach(d => {
     ['comida', 'cena'].forEach(mealKey => {
       (d[mealKey] || []).forEach(ing => {
         if (!ing.texto || !ing.cantidad) return;

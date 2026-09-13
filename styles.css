@@ -318,6 +318,8 @@ input:focus, select:focus, button:focus{
 .week-pill.type-gluteo{ background: var(--coral); }
 .week-pill.type-squat{ background: var(--lime); }
 .week-pill.type-descanso{ background: var(--muted); }
+.week-pill.menu-week-pill{ background: var(--card-line); color: var(--text); flex: 1; }
+.week-pill.menu-week-pill.selected{ background: var(--lime); color: #10150C; }
 
 .plan-block-title{
   font-family: var(--font-mono);

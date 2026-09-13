@@ -191,7 +191,11 @@
 
       <div class="card margin-card">
         <p class="eyebrow">Menú semanal</p>
-        <p class="hint-text">Es tu menú de verdad: cada comida es una lista de ingredientes con su cantidad — edítalos, añade o quita los que quieras, se guarda solo. Debajo de cada día tienes las kcal y macros estimadas a partir de esos ingredientes (aproximado, no analiza etiquetas reales — distinto del Diario de comidas de la pestaña Compra, que es lo que apuntas cuando ya te lo has comido).</p>
+        <p class="hint-text">Es tu menú de verdad: cada comida es una lista de ingredientes con su cantidad — edítalos, añade o quita los que quieras, se guarda solo. Debajo de cada día tienes las kcal y macros estimadas a partir de esos ingredientes (aproximado, no analiza etiquetas reales — distinto del Diario de comidas de la pestaña Compra, que es lo que apuntas cuando ya te lo has comido). Puedes adelantar y preparar la semana que viene sin perder la de ahora — "Generar lista de la compra" usa la semana que tengas seleccionada aquí.</p>
+        <div id="menuWeekPills" class="week-pills">
+          <button type="button" class="week-pill menu-week-pill" data-week="current">Esta semana</button>
+          <button type="button" class="week-pill menu-week-pill" data-week="next">Semana que viene</button>
+        </div>
         <div id="menuPlan" class="menu-plan"></div>
         <button id="resetMenuBtn" class="btn btn-ghost">↺ Restaurar plantilla por defecto</button>
       </div>
