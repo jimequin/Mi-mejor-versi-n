@@ -3,27 +3,55 @@
 App web sencilla (HTML + CSS + JS, sin frameworks ni instalación) para llevar:
 
 - 📸 Fotos de progreso (botón "+" arriba) + captura opcional en cada registro de peso/entreno
+- 📁 **Importar desde carpetas del móvil** (solo Android + Chrome): conecta la carpeta donde guardas las fotos de la báscula y la del entreno, y la app las detecta e intenta leer los números por ti (OCR)
 - 🥗 **Nutrición**: peso y composición corporal completa (grasa, músculo, agua, grasa visceral, masa ósea), IMC automático, gráfico de evolución y tips
 - 🏋️ **Entrenos**: plan semanal reducido (glúteo 3x/semana con sábado incluido, movilidad de sentadilla 3x/semana, movilidad de cadera todos los días), registro de entrenos con ejercicios y kilos, cálculo automático de calorías según tu peso
-- 🛒 **Compra**: menú semanal sugerido (comida en tupper único, cena ligera con pescado), diario de comidas con calorías y macros, lista de la compra por súper
+- 📋 **Menús**: menú semanal editable (comida en tupper único, cena ligera, pescado solo en la cena, pasta máximo un día), con gramos ajustables por plato — lo editas tú directamente en la app, sin tener que pedírmelo cada semana
+- 🛒 **Compra**: diario de comidas con calorías y macros, lista de la compra por súper
 
 Todos los datos se guardan en tu propio navegador (`localStorage`). No hay servidor,
 así que si cambias de navegador o de móvil, no se sincroniza — es una limitación
 consciente para mantenerlo simple mientras aprendes.
 
-## ⚠️ Sobre las "ofertas" y sobre leer fotos automáticamente
+## 📁 Conectar una carpeta de fotos del móvil (Android + Chrome)
+
+En la pestaña **Nutrición** (bajo el formulario de peso) y en **Entrenos** (bajo
+el formulario de entreno) hay una tarjeta "Carpeta de fotos". Ahí puedes:
+
+1. Pulsar **"Conectar carpeta"** y elegir la carpeta del móvil donde guardas
+   ese tipo de foto (por ejemplo, una carpeta "Báscula" y otra "Entreno" —
+   la app recuerda cada una por separado). El navegador te pedirá permiso.
+2. Pulsar **"Buscar fotos nuevas"** cuando quieras. La app compara con lo que
+   ya has importado y solo te enseña las fotos que aún no ha visto.
+3. Para cada foto nueva, intenta **leer el número automáticamente** (peso,
+   % de grasa/músculo/agua, minutos, kcal...) con una tecnología de lectura
+   de texto en imágenes llamada OCR (la librería Tesseract.js, gratis y sin
+   clave de API). El resultado se rellena en un formulario, pero **siempre
+   tienes que revisarlo y corregirlo si hace falta** antes de pulsar
+   "Guardar" — la lectura automática falla a veces, sobre todo con letras
+   pequeñas, reflejos o fotos borrosas.
+
+### Por qué esto no funciona igual en todos los móviles
+
+- **Android + Chrome**: es el único caso en el que un navegador puede
+  "conectar" con una carpeta real del sistema de archivos (una función del
+  navegador llamada *File System Access API*). Por eso esta función solo
+  aparece activa ahí.
+- **iPhone (Safari)**: Safari no tiene esa función. Ahí sigue funcionando el
+  botón normal de "adjuntar foto" de cada formulario (subes la foto a mano,
+  como siempre).
+- Todo el procesamiento (compresión de la foto y OCR) ocurre **en tu propio
+  navegador**: ninguna foto se sube a ningún servidor. Eso sí, la primera vez
+  necesitas conexión a internet para que el navegador descargue la librería
+  de lectura de texto (Tesseract.js) desde su CDN.
+
+## ⚠️ Sobre las "ofertas" de los súpers
 
 La app **no** puede leer en tiempo real las ofertas de Mercadona, Lidl o
-Carrefour Express, ni puede "leer" el contenido de una foto de la báscula o
-del entreno (eso requeriría conectar una IA con visión y una clave de API de
-pago). Lo que sí hace:
-
-- Las fotos que subes se guardan para que las puedas consultar luego, pero
-  los datos (peso, grasa%, ejercicios, kilos...) los rellenas tú a mano
-  mirando la foto — son formularios rápidos pensados para tardar segundos.
-- La pestaña de compra te deja anotar manualmente el precio u oferta de cada
-  producto. Si quieres, pídeme en el chat de Claude "búscame las ofertas de
-  esta semana en [súper]" y las copias aquí a mano.
+Carrefour Express (eso requeriría conectarse a sus webs, que no lo permiten).
+La pestaña de compra te deja anotar manualmente el precio u oferta de cada
+producto. Si quieres, pídeme en el chat de Claude "búscame las ofertas de
+esta semana en [súper]" y las copias aquí a mano.
 
 ## Cómo probarla en tu ordenador
 

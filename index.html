@@ -61,6 +61,17 @@
         </form>
       </div>
 
+      <div class="card margin-card" id="weightFolderCard">
+        <p class="eyebrow">📁 Carpeta de fotos · Báscula</p>
+        <p class="hint-text">Conecta la carpeta del móvil donde guardas las fotos de la báscula (solo Android + Chrome). La app busca fotos nuevas e intenta leer el peso y la composición corporal — revisa siempre el número antes de guardar, la lectura automática puede fallar.</p>
+        <div class="row-form">
+          <button type="button" id="connectWeightFolderBtn" class="btn btn-ghost">📂 Conectar carpeta</button>
+          <button type="button" id="scanWeightFolderBtn" class="btn btn-ghost hidden">🔄 Buscar fotos nuevas</button>
+        </div>
+        <p class="hint-text folder-scan-status" id="weightFolderStatus"></p>
+        <div id="weightFolderQueue" class="folder-queue"></div>
+      </div>
+
       <div class="card margin-card">
         <p class="eyebrow">Tu altura (para calcular el IMC)</p>
         <div class="row-form">
@@ -136,6 +147,17 @@
         </form>
       </div>
 
+      <div class="card margin-card" id="workoutFolderCard">
+        <p class="eyebrow">📁 Carpeta de fotos · Entreno</p>
+        <p class="hint-text">Conecta la carpeta del móvil donde guardas las capturas del entreno (solo Android + Chrome). Intenta leer minutos y kcal si aparecen en la foto — revisa antes de guardar.</p>
+        <div class="row-form">
+          <button type="button" id="connectWorkoutFolderBtn" class="btn btn-ghost">📂 Conectar carpeta</button>
+          <button type="button" id="scanWorkoutFolderBtn" class="btn btn-ghost hidden">🔄 Buscar fotos nuevas</button>
+        </div>
+        <p class="hint-text folder-scan-status" id="workoutFolderStatus"></p>
+        <div id="workoutFolderQueue" class="folder-queue"></div>
+      </div>
+
       <div class="card margin-card">
         <p class="eyebrow">Esta semana</p>
         <div class="stat-row">
@@ -157,6 +179,21 @@
       </div>
     </section>
 
+    <!-- MENÚS -->
+    <section class="tab hidden" id="tab-menus">
+      <div class="card margin-card">
+        <p class="eyebrow">📋 Reglas de la semana</p>
+        <p class="hint-text">Comida siempre en un tupper único. Cena ligera — el pescado va a la cena, no a la comida. Pasta como mucho un día a la semana.</p>
+      </div>
+
+      <div class="card margin-card">
+        <p class="eyebrow">Menú semanal</p>
+        <p class="hint-text">Es tu menú de verdad: cada comida es una lista de ingredientes con su cantidad — edítalos, añade o quita los que quieras, se guarda solo. Debajo de cada día tienes las kcal y macros estimadas a partir de esos ingredientes (aproximado, no analiza etiquetas reales — distinto del Diario de comidas de la pestaña Compra, que es lo que apuntas cuando ya te lo has comido).</p>
+        <div id="menuPlan" class="menu-plan"></div>
+        <button id="resetMenuBtn" class="btn btn-ghost">↺ Restaurar plantilla por defecto</button>
+      </div>
+    </section>
+
     <!-- LISTA DE COMPRA -->
     <section class="tab hidden" id="tab-compra">
       <div class="card margin-card">
@@ -167,12 +204,6 @@
           <span class="pill">Carrefour Express</span>
         </div>
         <p class="hint-text">La app no puede leer ofertas en vivo de sus webs. Pídeme en el chat "busca ofertas de esta semana" y las metes aquí a mano.</p>
-      </div>
-
-      <div class="card margin-card">
-        <p class="eyebrow">Menú semanal sugerido</p>
-        <p class="hint-text">Comida: todo en un tupper. Cena: ligera, pescado mejor aquí que a mediodía. 🍌 Plátano de merienda los días que tengas Crossfit.</p>
-        <div id="menuPlan" class="menu-plan"></div>
       </div>
 
       <div class="card margin-card">
@@ -247,8 +278,12 @@
       <span class="tabbtn-num">02</span>
       <span>Entrenos</span>
     </button>
-    <button class="tabbtn" data-tab="compra">
+    <button class="tabbtn" data-tab="menus">
       <span class="tabbtn-num">03</span>
+      <span>Menús</span>
+    </button>
+    <button class="tabbtn" data-tab="compra">
+      <span class="tabbtn-num">04</span>
       <span>Compra</span>
     </button>
   </nav>
@@ -262,6 +297,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {

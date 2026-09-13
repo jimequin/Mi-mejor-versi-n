@@ -9,7 +9,9 @@ const STORAGE_KEYS = {
   workouts: 'cuaderno.workouts',
   shopping: 'cuaderno.shopping',
   planChecks: 'cuaderno.planChecks',
-  foodLog: 'cuaderno.foodLog'
+  foodLog: 'cuaderno.foodLog',
+  folderImports: 'cuaderno.folderImports',
+  menuPlan: 'cuaderno.menuPlan'
 };
 
 function load(key, fallback) {
@@ -141,6 +143,266 @@ function renderPhotos() {
   photoStrip.innerHTML = state.photos
     .map(p => `<img src="${p.src}" title="${new Date(p.date).toLocaleDateString('es-ES')}">`)
     .join('');
+}
+
+/* ---------- CARPETAS DE FOTOS DEL MÓVIL (importar + OCR) ----------
+   Conecta una carpeta real del teléfono y lee fotos nuevas para
+   rellenar el formulario automáticamente. Solo funciona en
+   Android + Chrome (File System Access API) — en iPhone/Safari no
+   existe esta función del navegador, así que ahí se sigue subiendo
+   la foto a mano con el botón de siempre. La lectura del número
+   (OCR, con Tesseract.js) es un intento: puede fallar o acertar a
+   medias, por eso siempre se puede revisar y corregir antes de
+   guardar. No se envía ninguna foto a ningún servidor: todo se
+   procesa en el propio navegador.
+------------------------------------------------------------------- */
+const supportsFolderPicker = 'showDirectoryPicker' in window;
+let folderImports = load(STORAGE_KEYS.folderImports, { peso: [], entreno: [] });
+const pendingFolderKeys = { peso: new Set(), entreno: new Set() };
+
+function openFolderDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('cuaderno-carpetas', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function saveFolderHandle(type, handle) {
+  const db = await openFolderDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(handle, type);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function getFolderHandle(type) {
+  try {
+    const db = await openFolderDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get(type);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error('Error leyendo carpeta guardada', e);
+    return null;
+  }
+}
+function markFolderFileImported(type, key) {
+  folderImports[type].push(key);
+  save(STORAGE_KEYS.folderImports, folderImports);
+  pendingFolderKeys[type].delete(key);
+}
+
+// Intenta sacar peso y composición corporal del texto leído en la foto
+function parseWeightOcr(text) {
+  const norm = text.toLowerCase().replace(/,/g, '.');
+  const result = {};
+  const patterns = {
+    kg: /peso[^0-9]{0,10}(\d{2,3}(?:\.\d)?)/,
+    fat: /gras(?:a)?(?:\s*corporal)?[^0-9%]{0,10}(\d{1,2}(?:\.\d)?)\s*%/,
+    muscle: /m[uú]scul[oa][^0-9%]{0,10}(\d{1,2}(?:\.\d)?)\s*%/,
+    water: /agua[^0-9%]{0,10}(\d{1,2}(?:\.\d)?)\s*%/,
+    visceral: /visceral[^0-9]{0,10}(\d{1,2}(?:\.\d)?)/,
+    bone: /[oó]se[a]?[^0-9]{0,10}(\d{1,2}(?:\.\d)?)/
+  };
+  for (const [key, re] of Object.entries(patterns)) {
+    const m = norm.match(re);
+    if (m) result[key] = parseFloat(m[1]);
+  }
+  // Si no encuentra la palabra "peso", coge el primer número que parezca un peso de persona (30-200kg)
+  if (result.kg == null) {
+    const nums = (norm.match(/\d{2,3}(?:\.\d)?/g) || []).map(parseFloat);
+    result.kg = nums.find(n => n >= 30 && n <= 200) || null;
+  }
+  return result;
+}
+
+// Intenta sacar minutos y kcal del texto leído en la foto de un entreno
+function parseWorkoutOcr(text) {
+  const norm = text.toLowerCase().replace(/,/g, '.');
+  const result = {};
+  let m = norm.match(/(\d{1,3})\s*(?:min|minutos)/);
+  if (m) result.minutes = parseInt(m[1], 10);
+  m = norm.match(/(\d{2,4})\s*(?:kcal|cal)/);
+  if (m) result.calories = parseInt(m[1], 10);
+  return result;
+}
+
+async function scanFolder(type) {
+  const statusEl = document.getElementById(type === 'peso' ? 'weightFolderStatus' : 'workoutFolderStatus');
+  const handle = await getFolderHandle(type);
+  if (!handle) return;
+
+  let perm = await handle.queryPermission({ mode: 'read' });
+  if (perm !== 'granted') perm = await handle.requestPermission({ mode: 'read' });
+  if (perm !== 'granted') {
+    statusEl.textContent = 'No has dado permiso para leer la carpeta.';
+    return;
+  }
+
+  statusEl.textContent = 'Buscando fotos nuevas…';
+  const found = [];
+  for await (const entry of handle.values()) {
+    if (entry.kind !== 'file' || !/\.(jpe?g|png|webp)$/i.test(entry.name)) continue;
+    const file = await entry.getFile();
+    const key = `${entry.name}|${file.size}|${file.lastModified}`;
+    if (folderImports[type].includes(key) || pendingFolderKeys[type].has(key)) continue;
+    found.push({ key, file });
+  }
+  found.sort((a, b) => a.file.lastModified - b.file.lastModified);
+
+  statusEl.textContent = found.length
+    ? `${found.length} foto(s) nueva(s) — revisa y guarda cada una abajo.`
+    : 'No hay fotos nuevas en la carpeta.';
+
+  for (const { key, file } of found) {
+    pendingFolderKeys[type].add(key);
+    addFolderReviewItem(type, key, file);
+  }
+}
+
+async function addFolderReviewItem(type, key, file) {
+  const queueEl = document.getElementById(type === 'peso' ? 'weightFolderQueue' : 'workoutFolderQueue');
+  let dataUrl;
+  try {
+    dataUrl = await fileToCompressedDataUrl(file, 640, 0.7);
+  } catch (e) {
+    console.error('No se pudo abrir la foto', file.name, e);
+    return; // formato no soportado por el navegador (p.ej. algún .heic) — se reintentará en el próximo escaneo
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'folder-review-item';
+  wrap.innerHTML = `
+    <img class="folder-review-thumb" src="${dataUrl}">
+    <div class="folder-review-body">
+      <span class="folder-review-name">${file.name}</span>
+      <span class="folder-ocr-badge">🔎 Leyendo foto…</span>
+      <div class="folder-review-fields"></div>
+      <div class="folder-review-actions">
+        <button type="button" class="btn btn-lime btn-sm" data-save>Guardar</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-discard>Descartar</button>
+      </div>
+      <details><summary>Texto detectado</summary><pre data-ocr-text>—</pre></details>
+    </div>
+  `;
+  queueEl.appendChild(wrap);
+  wrap.querySelector('.folder-review-thumb').addEventListener('click', () => openPhotoModal(dataUrl));
+  wrap.querySelector('[data-discard]').addEventListener('click', () => {
+    markFolderFileImported(type, key);
+    wrap.remove();
+  });
+
+  const badgeEl = wrap.querySelector('.folder-ocr-badge');
+  const fieldsEl = wrap.querySelector('.folder-review-fields');
+  let ocrData = {};
+  try {
+    const { data } = await Tesseract.recognize(dataUrl, 'eng');
+    wrap.querySelector('[data-ocr-text]').textContent = data.text.trim() || '(sin texto detectado)';
+    ocrData = type === 'peso' ? parseWeightOcr(data.text || '') : parseWorkoutOcr(data.text || '');
+    badgeEl.textContent = Object.keys(ocrData).some(k => ocrData[k] != null)
+      ? '✓ Datos detectados — revisa antes de guardar'
+      : '⚠️ No detecté ningún número, rellénalo a mano';
+  } catch (err) {
+    console.error('Error de OCR', err);
+    badgeEl.textContent = '⚠️ No se pudo leer la foto, rellena a mano';
+  }
+
+  if (type === 'peso') {
+    fieldsEl.innerHTML = `
+      <input type="number" step="0.1" data-field="kg" placeholder="Peso (kg)" value="${ocrData.kg ?? ''}">
+      <input type="number" step="0.1" data-field="fat" placeholder="Grasa %" value="${ocrData.fat ?? ''}">
+      <input type="number" step="0.1" data-field="muscle" placeholder="Músculo %" value="${ocrData.muscle ?? ''}">
+      <input type="number" step="0.1" data-field="water" placeholder="Agua %" value="${ocrData.water ?? ''}">
+      <input type="number" step="0.1" data-field="visceral" placeholder="Visceral" value="${ocrData.visceral ?? ''}">
+      <input type="number" step="0.01" data-field="bone" placeholder="Ósea (kg)" value="${ocrData.bone ?? ''}">
+    `;
+    wrap.querySelector('[data-save]').addEventListener('click', () => {
+      const get = (f) => {
+        const v = fieldsEl.querySelector(`[data-field="${f}"]`).value;
+        return v !== '' ? parseFloat(v) : null;
+      };
+      const kg = get('kg');
+      if (!kg) { alert('Pon al menos el peso antes de guardar.'); return; }
+      state.weights.push({
+        id: Date.now(),
+        date: new Date(file.lastModified || Date.now()).toISOString(),
+        kg, fat: get('fat'), muscle: get('muscle'), water: get('water'),
+        visceral: get('visceral'), bone: get('bone'), photo: dataUrl
+      });
+      state.weights.sort((a, b) => new Date(a.date) - new Date(b.date));
+      save(STORAGE_KEYS.weights, state.weights);
+      renderWeights();
+      markFolderFileImported(type, key);
+      wrap.remove();
+    });
+  } else {
+    fieldsEl.innerHTML = `
+      <input type="text" data-field="sport" placeholder="Tipo de entreno" value="Entreno">
+      <input type="number" data-field="minutes" placeholder="Minutos" value="${ocrData.minutes ?? ''}">
+      <input type="number" data-field="calories" placeholder="Kcal" value="${ocrData.calories ?? ''}">
+    `;
+    wrap.querySelector('[data-save]').addEventListener('click', () => {
+      const sport = fieldsEl.querySelector('[data-field="sport"]').value.trim() || 'Entreno';
+      const minutes = parseInt(fieldsEl.querySelector('[data-field="minutes"]').value, 10);
+      const calories = parseInt(fieldsEl.querySelector('[data-field="calories"]').value, 10);
+      if (!minutes || !calories) { alert('Pon minutos y kcal antes de guardar.'); return; }
+      state.workouts.push({
+        id: Date.now(),
+        date: new Date(file.lastModified || Date.now()).toISOString(),
+        sport, minutes, calories, exercises: [], photo: dataUrl
+      });
+      save(STORAGE_KEYS.workouts, state.workouts);
+      renderWorkouts();
+      markFolderFileImported(type, key);
+      wrap.remove();
+    });
+  }
+}
+
+async function setupFolderConnector(type, connectBtnId, scanBtnId, statusId) {
+  const connectBtn = document.getElementById(connectBtnId);
+  const scanBtn = document.getElementById(scanBtnId);
+  const statusEl = document.getElementById(statusId);
+
+  if (!supportsFolderPicker) {
+    connectBtn.disabled = true;
+    connectBtn.textContent = 'No disponible en este navegador';
+    statusEl.textContent = 'Conectar una carpeta solo funciona en Android con Chrome. En iPhone/Safari sigue usando el botón de adjuntar foto de arriba.';
+    return;
+  }
+
+  async function refreshStatus() {
+    const handle = await getFolderHandle(type);
+    if (!handle) {
+      statusEl.textContent = 'Ninguna carpeta conectada todavía.';
+      scanBtn.classList.add('hidden');
+      return;
+    }
+    scanBtn.classList.remove('hidden');
+    const perm = await handle.queryPermission({ mode: 'read' });
+    statusEl.textContent = perm === 'granted'
+      ? `Carpeta conectada: "${handle.name}".`
+      : `Carpeta "${handle.name}" conectada — pulsa "Buscar fotos nuevas" para reactivar el permiso.`;
+  }
+
+  connectBtn.addEventListener('click', async () => {
+    try {
+      const handle = await window.showDirectoryPicker();
+      await saveFolderHandle(type, handle);
+      await refreshStatus();
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('Error conectando carpeta', err);
+    }
+  });
+
+  scanBtn.addEventListener('click', () => scanFolder(type));
+
+  await refreshStatus();
 }
 
 /* ---------- NUTRICIÓN: PESO ---------- */
@@ -562,26 +824,281 @@ function renderWorkouts() {
   });
 }
 
-/* ---------- MENÚ SEMANAL SUGERIDO ---------- */
-const MENU_PLAN = [
-  { day: 'Lunes', comida: 'Arroz integral con pollo a la plancha, calabacín y pimiento salteado', cena: 'Crema de calabacín con huevo duro' },
-  { day: 'Martes', comida: 'Lentejas estofadas con verduras y taquitos de pavo', cena: 'Merluza al horno con espárragos' },
-  { day: 'Miércoles', comida: 'Pasta integral con atún, tomate y aceitunas', cena: 'Tortilla francesa con champiñones y ensalada' },
-  { day: 'Jueves', comida: 'Quinoa con garbanzos, espinacas y huevo', cena: 'Salmón al vapor con brócoli' },
-  { day: 'Viernes', comida: 'Arroz con verduras y gambas', cena: 'Revuelto de espárragos con jamón de pavo' },
-  { day: 'Sábado', comida: 'Pollo al curry con arroz basmati y verduras', cena: 'Ensalada de queso fresco, tomate y nueces' },
-  { day: 'Domingo', comida: 'Garbanzos con verdura (puchero de toda la vida)', cena: 'Pescado blanco a la plancha con ensalada' }
+/* ---------- MENÚ SEMANAL (editable, ingrediente a ingrediente) ----------
+   El menú se guarda en localStorage para que lo puedas cambiar tú
+   mismo cada semana sin tener que pedírmelo en el chat. Cada comida
+   es una lista de ingredientes con su propia cantidad (no un gramaje
+   total del plato), para poder añadir o quitar líneas libremente.
+   Reglas que sigue el menú por defecto: comida siempre en tupper
+   único, el pescado va solo en la cena, y como mucho un día de pasta.
+------------------------------------------------------------------- */
+
+// Plantilla genérica de repuesto, por si quieres "resetear" el menú
+const DEFAULT_MENU_TEMPLATE = [
+  { day: 'Lunes', comida: [{ texto: 'Arroz integral con pollo a la plancha y verduras salteadas', cantidad: '350 g' }], cena: [{ texto: 'Crema de calabacín con huevo duro', cantidad: '280 g' }] },
+  { day: 'Martes', comida: [{ texto: 'Lentejas estofadas con verduras y pollo', cantidad: '350 g' }], cena: [{ texto: 'Merluza al horno con verduras', cantidad: '280 g' }] },
+  { day: 'Miércoles', comida: [{ texto: 'Pasta integral con pollo, tomate y aceitunas', cantidad: '350 g' }], cena: [{ texto: 'Tortilla francesa con champiñones y ensalada', cantidad: '280 g' }] },
+  { day: 'Jueves', comida: [{ texto: 'Quinoa con garbanzos, espinacas y huevo', cantidad: '350 g' }], cena: [{ texto: 'Salmón al vapor con verduras', cantidad: '280 g' }] },
+  { day: 'Viernes', comida: [{ texto: 'Arroz con verduras y pollo', cantidad: '350 g' }], cena: [{ texto: 'Revuelto de verduras con pollo', cantidad: '280 g' }] },
+  { day: 'Sábado', comida: [{ texto: 'Pollo al curry con arroz basmati y verduras', cantidad: '350 g' }], cena: [{ texto: 'Ensalada de queso fresco, tomate y nueces', cantidad: '280 g' }] },
+  { day: 'Domingo', comida: [{ texto: 'Garbanzos con verdura (puchero de toda la vida)', cantidad: '350 g' }], cena: [{ texto: 'Pescado blanco a la plancha con ensalada', cantidad: '280 g' }] }
 ];
 
-function renderMenuPlan() {
-  document.getElementById('menuPlan').innerHTML = MENU_PLAN.map(d => `
-    <div class="menu-day">
-      <div class="menu-day-title">${d.day}</div>
-      <div class="menu-day-line"><b>COMIDA</b> ${d.comida}</div>
-      <div class="menu-day-line cena"><b>CENA</b> ${d.cena}</div>
+// Tu menú real de esta semana. Sin espárragos (caros y no tienes),
+// más pimiento amarillo y cebolla, pollo en vez de pavo, berenjena
+// blanca en chips al horno una noche. Albóndigas dos días (lunes y
+// miércoles), solo tu ración — pon tú los gramos/uds reales que
+// vayas a comer y las kcal/macros se recalculan solas. Dos días de
+// pisto (jueves y sábado) para gastarlo, solo un día de salchichas
+// congeladas. Domingo = hoy.
+const THIS_WEEK_MENU = [
+  {
+    day: 'Lunes',
+    comida: [
+      { texto: 'Albóndigas caseras (tu ración)', cantidad: '4 uds' },
+      { texto: 'Arroz blanco', cantidad: '200 g' },
+      { texto: 'Pimiento amarillo y cebolla salteados', cantidad: '150 g' }
+    ],
+    cena: [
+      { texto: 'Tortilla francesa (huevo)', cantidad: '3 uds' },
+      { texto: 'Champiñones salteados', cantidad: '100 g' },
+      { texto: 'Ensalada verde', cantidad: '100 g' }
+    ]
+  },
+  {
+    day: 'Martes',
+    comida: [
+      { texto: 'Chili casero proteico', cantidad: '300 g' },
+      { texto: 'Arroz blanco', cantidad: '150 g' }
+    ],
+    cena: [
+      { texto: 'Pollo a la plancha en tiras', cantidad: '150 g' },
+      { texto: 'Pimiento amarillo y cebolla salteados', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Miércoles',
+    comida: [
+      { texto: 'Albóndigas caseras (tu ración)', cantidad: '4 uds' },
+      { texto: 'Ñoquis salteados', cantidad: '300 g' },
+      { texto: 'Pimiento amarillo y cebolla', cantidad: '150 g' }
+    ],
+    cena: [
+      { texto: 'Salmón al horno (teletrabajo)', cantidad: '280 g' },
+      { texto: 'Pimiento amarillo y cebolla al horno', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Jueves',
+    comida: [
+      { texto: 'Pisto de mamá con pollo', cantidad: '300 g' },
+      { texto: 'Pollo desmenuzado', cantidad: '100 g' }
+    ],
+    cena: [
+      { texto: 'Huevos revueltos', cantidad: '3 uds' },
+      { texto: 'Chips de berenjena blanca al horno con especias', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Viernes',
+    comida: [
+      { texto: 'Lasaña casera 🍝 (único día con pasta de trigo)', cantidad: '350 g' }
+    ],
+    cena: [
+      { texto: 'Salchichas a la plancha', cantidad: '200 g' },
+      { texto: 'Pimiento amarillo y cebolla salteados', cantidad: '150 g' }
+    ]
+  },
+  {
+    day: 'Sábado',
+    comida: [
+      { texto: 'Pisto de mamá', cantidad: '300 g' },
+      { texto: 'Huevo a la plancha', cantidad: '2 uds' }
+    ],
+    cena: [
+      { texto: 'Crema de calabacín', cantidad: '300 ml' },
+      { texto: 'Huevo duro', cantidad: '2 uds' }
+    ]
+  },
+  {
+    day: 'Domingo',
+    comida: [
+      { texto: 'Hamburguesa casera 🍔 (hoy)', cantidad: '2 uds' }
+    ],
+    cena: [
+      { texto: 'Huevo (para gulas) 🍳 (hoy)', cantidad: '3 uds' },
+      { texto: 'Gulas', cantidad: '100 g' }
+    ]
+  }
+];
+
+// Convierte un menú guardado con el formato antiguo (un plato + gramos
+// por comida) al formato nuevo (lista de ingredientes), para que un
+// menú ya guardado en el móvil no se rompa al actualizar la app.
+function normalizeMenuPlan(plan) {
+  const toList = (meal) => {
+    if (Array.isArray(meal)) return meal.length ? meal : [{ texto: '', cantidad: '' }];
+    if (meal && meal.texto) return [{ texto: meal.texto, cantidad: meal.gramos ? `${meal.gramos} g` : '' }];
+    return [{ texto: '', cantidad: '' }];
+  };
+  return plan.map(d => ({ day: d.day, comida: toList(d.comida), cena: toList(d.cena) }));
+}
+
+let menuPlanState = normalizeMenuPlan(load(STORAGE_KEYS.menuPlan, null) || THIS_WEEK_MENU);
+
+// Diccionario aproximado (kcal/proteína/carbos/grasa por 100g) para poder
+// calcular las kcal y macros del día a partir de los ingredientes y sus
+// cantidades. Es una estimación (no lee etiquetas reales), y si un
+// ingrediente no está aquí, o la cantidad no se puede convertir a gramos,
+// se avisa en vez de dar un número inventado.
+const NUTRITION_DB = [
+  { keys: ['pollo'], kcal: 165, p: 31, c: 0, f: 3.6 },
+  { keys: ['arroz'], kcal: 130, p: 2.7, c: 28, f: 0.3 },
+  { keys: ['calabacin', 'calabacín'], kcal: 17, p: 1.2, c: 3.1, f: 0.3 },
+  { keys: ['pimiento'], kcal: 31, p: 1, c: 6, f: 0.3 },
+  { keys: ['cebolla'], kcal: 40, p: 1.1, c: 9, f: 0.1 },
+  { keys: ['huevo'], kcal: 155, p: 13, c: 1.1, f: 11, gramsPerUnit: 60 },
+  { keys: ['champin', 'champiñ'], kcal: 30, p: 3, c: 3.3, f: 1 },
+  { keys: ['ensalada', 'lechuga'], kcal: 15, p: 1.2, c: 2.9, f: 0.2 },
+  { keys: ['chili'], kcal: 150, p: 14, c: 10, f: 6 },
+  { keys: ['albondiga', 'albóndiga'], kcal: 220, p: 15, c: 8, f: 14, gramsPerUnit: 30 },
+  { keys: ['ñoqui', 'noqui'], kcal: 155, p: 3.5, c: 31, f: 2 },
+  { keys: ['pisto'], kcal: 90, p: 1.5, c: 8, f: 6 },
+  { keys: ['hamburguesa'], kcal: 250, p: 20, c: 0, f: 18, gramsPerUnit: 150 },
+  { keys: ['lasaña', 'lasagna', 'lasana'], kcal: 190, p: 9, c: 16, f: 10 },
+  { keys: ['salchicha'], kcal: 260, p: 12, c: 2, f: 23 },
+  { keys: ['gulas'], kcal: 80, p: 11, c: 1, f: 3 },
+  { keys: ['berenjena'], kcal: 25, p: 1, c: 6, f: 0.2 },
+  { keys: ['crema'], kcal: 45, p: 1.5, c: 5, f: 2 },
+  { keys: ['salmon', 'salmón'], kcal: 208, p: 20, c: 0, f: 13 },
+  { keys: ['lenteja'], kcal: 116, p: 9, c: 20, f: 0.4 },
+  { keys: ['garbanzo'], kcal: 164, p: 8.9, c: 27, f: 2.6 },
+  { keys: ['queso'], kcal: 98, p: 11, c: 3.4, f: 4 },
+  { keys: ['nuez', 'nueces'], kcal: 607, p: 20, c: 20, f: 54 },
+  { keys: ['tomate'], kcal: 18, p: 0.9, c: 3.9, f: 0.2 },
+  { keys: ['merluza'], kcal: 86, p: 17.8, c: 0, f: 1 },
+  { keys: ['pescado blanco'], kcal: 90, p: 18, c: 0, f: 1.2 },
+  { keys: ['quinoa'], kcal: 120, p: 4.4, c: 21, f: 1.9 },
+  { keys: ['espinaca'], kcal: 23, p: 2.9, c: 3.6, f: 0.4 },
+  { keys: ['brocoli', 'brócoli'], kcal: 34, p: 2.8, c: 7, f: 0.4 }
+];
+
+function normalizeText(str) {
+  return str.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Si el ingrediente combina varias cosas reconocidas (p.ej. "pimiento y
+// cebolla") se promedian sus valores — es una mezcla, no una suma.
+function matchFoodMacros(texto) {
+  const norm = normalizeText(texto);
+  const hits = NUTRITION_DB.filter(item => item.keys.some(k => norm.includes(normalizeText(k))));
+  if (!hits.length) return null;
+  const avg = (field) => hits.reduce((sum, h) => sum + h[field], 0) / hits.length;
+  return { kcal: avg('kcal'), p: avg('p'), c: avg('c'), f: avg('f'), gramsPerUnit: hits[0].gramsPerUnit };
+}
+
+// Convierte "300 g" / "300 ml" / "3 uds" a gramos. Con unidades solo
+// funciona si conocemos el peso aproximado de una unidad de ese alimento.
+function parseCantidadGrams(cantidadTexto, gramsPerUnit) {
+  const norm = (cantidadTexto || '').toLowerCase().trim();
+  let m = norm.match(/^([\d.,]+)\s*(g|gr|gramos|ml)\b/);
+  if (m) return parseFloat(m[1].replace(',', '.'));
+  m = norm.match(/^([\d.,]+)\s*(uds?|unidades?|huevos?)\b/);
+  if (m && gramsPerUnit) return parseFloat(m[1].replace(',', '.')) * gramsPerUnit;
+  return null;
+}
+
+function sumMealMacros(items, totals) {
+  let ok = true;
+  (items || []).forEach(ing => {
+    if (!ing.texto || !ing.cantidad) return;
+    const food = matchFoodMacros(ing.texto);
+    if (!food) { ok = false; return; }
+    const grams = parseCantidadGrams(ing.cantidad, food.gramsPerUnit);
+    if (grams == null) { ok = false; return; }
+    const ratio = grams / 100;
+    totals.kcal += food.kcal * ratio;
+    totals.p += food.p * ratio;
+    totals.c += food.c * ratio;
+    totals.f += food.f * ratio;
+  });
+  return ok;
+}
+
+function renderMealBlock(items, dayIdx, mealKey, label) {
+  const rows = items.map((ing, itemIdx) => `
+    <div class="menu-ingredient-row">
+      <input type="text" class="menu-text-input" placeholder="Ingrediente"
+        data-day="${dayIdx}" data-meal="${mealKey}" data-item="${itemIdx}" data-field="texto" value="${ing.texto}">
+      <input type="text" class="menu-cantidad-input" placeholder="Cantidad"
+        data-day="${dayIdx}" data-meal="${mealKey}" data-item="${itemIdx}" data-field="cantidad" value="${ing.cantidad}">
+      <button type="button" class="del" data-remove-ingredient data-day="${dayIdx}" data-meal="${mealKey}" data-item="${itemIdx}">✕</button>
     </div>
   `).join('');
+  return `
+    <label class="menu-field-label ${mealKey === 'cena' ? 'cena' : ''}">${label}</label>
+    ${rows}
+    <button type="button" class="btn btn-ghost btn-sm" data-add-ingredient data-day="${dayIdx}" data-meal="${mealKey}">+ Añadir ingrediente</button>
+  `;
 }
+
+function renderDayTotals(d) {
+  const totals = { kcal: 0, p: 0, c: 0, f: 0 };
+  const okComida = sumMealMacros(d.comida, totals);
+  const okCena = sumMealMacros(d.cena, totals);
+  const note = (okComida && okCena)
+    ? ''
+    : '<span class="menu-totals-note">* estimación aproximada — algún ingrediente o cantidad no se ha podido calcular (revísalo o dale un formato tipo "150 g")</span>';
+  return `
+    <div class="menu-day-totals">
+      🔥 <b>${Math.round(totals.kcal)} kcal</b> · P ${Math.round(totals.p)}g · C ${Math.round(totals.c)}g · G ${Math.round(totals.f)}g
+      ${note}
+    </div>
+  `;
+}
+
+function renderMenuPlan() {
+  document.getElementById('menuPlan').innerHTML = menuPlanState.map((d, dayIdx) => `
+    <div class="menu-day">
+      <div class="menu-day-title">${d.day}</div>
+      ${renderMealBlock(d.comida, dayIdx, 'comida', 'Comida')}
+      ${renderMealBlock(d.cena, dayIdx, 'cena', 'Cena')}
+      ${renderDayTotals(d)}
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.menu-ingredient-row input').forEach(input => {
+    input.addEventListener('change', () => {
+      const { day, meal, item, field } = input.dataset;
+      menuPlanState[day][meal][item][field] = input.value;
+      save(STORAGE_KEYS.menuPlan, menuPlanState);
+    });
+  });
+  document.querySelectorAll('[data-add-ingredient]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const { day, meal } = btn.dataset;
+      menuPlanState[day][meal].push({ texto: '', cantidad: '' });
+      save(STORAGE_KEYS.menuPlan, menuPlanState);
+      renderMenuPlan();
+    });
+  });
+  document.querySelectorAll('[data-remove-ingredient]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const { day, meal, item } = btn.dataset;
+      menuPlanState[day][meal].splice(item, 1);
+      if (!menuPlanState[day][meal].length) menuPlanState[day][meal].push({ texto: '', cantidad: '' });
+      save(STORAGE_KEYS.menuPlan, menuPlanState);
+      renderMenuPlan();
+    });
+  });
+}
+
+document.getElementById('resetMenuBtn').addEventListener('click', () => {
+  if (!confirm('¿Restaurar la plantilla genérica? Perderás el menú que has editado.')) return;
+  menuPlanState = normalizeMenuPlan(JSON.parse(JSON.stringify(DEFAULT_MENU_TEMPLATE)));
+  save(STORAGE_KEYS.menuPlan, menuPlanState);
+  renderMenuPlan();
+});
 
 /* ---------- DIARIO DE COMIDAS ---------- */
 // Valores por cada 100g (aprox., fuente: tablas nutricionales estándar)
@@ -749,3 +1266,5 @@ renderMobility();
 renderMenuPlan();
 renderFoodLog();
 showRandomTip();
+setupFolderConnector('peso', 'connectWeightFolderBtn', 'scanWeightFolderBtn', 'weightFolderStatus');
+setupFolderConnector('entreno', 'connectWorkoutFolderBtn', 'scanWorkoutFolderBtn', 'workoutFolderStatus');
