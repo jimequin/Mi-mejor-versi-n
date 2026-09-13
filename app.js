@@ -1118,6 +1118,10 @@ function parseCantidadGrams(cantidadTexto, gramsPerUnit) {
   if (m) return parseFloat(m[1].replace(',', '.'));
   m = norm.match(/^([\d.,]+)\s*(uds?|unidades?|huevos?)\b/);
   if (m && gramsPerUnit) return parseFloat(m[1].replace(',', '.')) * gramsPerUnit;
+  // Si has puesto solo el número, sin unidad detrás (p.ej. borraste la
+  // "g" sin querer al editar), lo tratamos como gramos por defecto.
+  m = norm.match(/^([\d.,]+)$/);
+  if (m) return parseFloat(m[1].replace(',', '.'));
   return null;
 }
 
@@ -1155,7 +1159,7 @@ function renderMealBlock(items, dayIdx, mealKey, label) {
   `;
 }
 
-function renderDayTotals(d) {
+function renderDayTotals(d, dayIdx) {
   const totals = { kcal: 0, p: 0, c: 0, f: 0 };
   const okComida = sumMealMacros(d.comida, totals);
   const okCena = sumMealMacros(d.cena, totals);
@@ -1163,11 +1167,39 @@ function renderDayTotals(d) {
     ? ''
     : '<span class="menu-totals-note">* estimación aproximada — algún ingrediente o cantidad no se ha podido calcular (revísalo o dale un formato tipo "150 g")</span>';
   return `
-    <div class="menu-day-totals">
+    <div class="menu-day-totals" data-totals-for="${dayIdx}">
       🔥 <b>${Math.round(totals.kcal)} kcal</b> · P ${Math.round(totals.p)}g · C ${Math.round(totals.c)}g · G ${Math.round(totals.f)}g
       ${note}
     </div>
   `;
+}
+
+// Actualiza solo la cajita de kcal/macros de un día, sin reconstruir
+// los campos — así nunca se pierde el foco ni lo que estás escribiendo.
+function updateDayTotalsOnly(dayIdx) {
+  const plan = getMenuPlanState();
+  const el = document.querySelector(`.menu-day-totals[data-totals-for="${dayIdx}"]`);
+  if (el && plan[dayIdx]) el.outerHTML = renderDayTotals(plan[dayIdx], dayIdx);
+}
+
+// Si el día editado tiene pareja (lunes/jueves, martes/miércoles) y esa
+// pareja está en pantalla, refleja los mismos valores en sus campos sin
+// reconstruir nada (mismo motivo: no perder el foco de lo que escribes).
+function reflectMirroredDayInputs(weekId, dayIdx, mealKey) {
+  if (weekId === 'current') return;
+  const plan = menuWeeks[weekId];
+  const dayName = plan[dayIdx] && plan[dayIdx].day;
+  const linkedName = MENU_DAY_LINKS[dayName];
+  if (!linkedName) return;
+  const linkedIdx = plan.findIndex(d => d.day === linkedName);
+  if (linkedIdx === -1) return;
+  plan[linkedIdx][mealKey].forEach((ing, itemIdx) => {
+    const textoInput = document.querySelector(`.menu-text-input[data-day="${linkedIdx}"][data-meal="${mealKey}"][data-item="${itemIdx}"]`);
+    const cantidadInput = document.querySelector(`.menu-cantidad-input[data-day="${linkedIdx}"][data-meal="${mealKey}"][data-item="${itemIdx}"]`);
+    if (textoInput) textoInput.value = ing.texto;
+    if (cantidadInput) cantidadInput.value = ing.cantidad;
+  });
+  updateDayTotalsOnly(linkedIdx);
 }
 
 // Días que siempre quieres iguales (cocina de una vez, comes dos días
@@ -1198,17 +1230,23 @@ function renderMenuPlan() {
       <div class="menu-day-title">${d.day}</div>
       ${renderMealBlock(d.comida, dayIdx, 'comida', 'Comida')}
       ${renderMealBlock(d.cena, dayIdx, 'cena', 'Cena')}
-      ${renderDayTotals(d)}
+      ${renderDayTotals(d, dayIdx)}
     </div>
   `).join('');
 
   document.querySelectorAll('.menu-ingredient-row input').forEach(input => {
-    input.addEventListener('change', () => {
+    // "input" (cada pulsación), no "change" (que solo salta al salir del
+    // campo y en algunos móviles no llega a dispararse bien). Solo se
+    // actualiza la cajita de kcal/macros y, si hay día pareja, sus
+    // campos — nunca se reconstruye el campo que estás escribiendo, así
+    // no se pierde el foco ni lo que llevas tecleado.
+    input.addEventListener('input', () => {
       const { day, meal, item, field } = input.dataset;
       getMenuPlanState()[day][meal][item][field] = input.value;
       mirrorLinkedDay(activeMenuWeek, day, meal);
       saveMenuPlanState();
-      renderMenuPlan(); // vuelve a calcular kcal/macros con el valor nuevo
+      updateDayTotalsOnly(day);
+      reflectMirroredDayInputs(activeMenuWeek, day, meal);
     });
   });
   document.querySelectorAll('[data-add-ingredient]').forEach(btn => {
