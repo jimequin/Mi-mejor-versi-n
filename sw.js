@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuaderno-vallecas-v2';
+const CACHE_NAME = 'cuaderno-vallecas-v3';
 const FILES_TO_CACHE = [
   './',
   './index.html',
@@ -33,7 +33,7 @@ self.addEventListener('fetch', (event) => {
   // usa la última copia guardada — así una actualización de la app no se
   // queda "pillada" en una versión vieja mientras tengas internet.
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-store' })
       .then((response) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));

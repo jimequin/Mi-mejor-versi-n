@@ -193,6 +193,16 @@
       </div>
 
       <div class="card margin-card">
+        <p class="eyebrow">📅 Desde cuándo ver los gráficos</p>
+        <p class="hint-text">Si quieres dejar atrás datos antiguos (por ejemplo de antes de arreglar el fallo de fechas) y que todas las gráficas de aquí abajo empiecen desde una fecha en adelante, elígela aquí. No borra nada, solo lo oculta de estas gráficas.</p>
+        <div class="row-form">
+          <input type="date" id="graficosStartInput">
+          <button type="button" id="graficosStartTodayBtn" class="btn btn-ghost btn-sm">Empezar desde hoy</button>
+        </div>
+        <button type="button" id="graficosStartClearBtn" class="btn btn-ghost btn-sm">Ver todo el historial</button>
+      </div>
+
+      <div class="card margin-card">
         <p class="eyebrow">Composición corporal en el tiempo</p>
         <p class="hint-text">Grasa % y músculo, con la línea de tu objetivo marcada.</p>
         <canvas id="fatChart" height="160"></canvas>

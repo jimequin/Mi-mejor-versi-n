@@ -20,7 +20,8 @@ const STORAGE_KEYS = {
   completionCounted: 'cuaderno.completionCounted',
   autoLoggedKeys: 'cuaderno.autoLoggedKeys',
   menuConsumedLog: 'cuaderno.menuConsumedLog',
-  myFoods: 'cuaderno.myFoods'
+  myFoods: 'cuaderno.myFoods',
+  graficosStart: 'cuaderno.graficosStart'
 };
 
 function load(key, fallback) {
@@ -47,8 +48,19 @@ let state = {
   // cuenta también en el consumo calórico y en el balance de Gráficos.
   // Clave: fecha real (AAAA-MM-DD) del día de esa semana.
   menuConsumedLog: load(STORAGE_KEYS.menuConsumedLog, {}),
-  myFoods: load(STORAGE_KEYS.myFoods, [])
+  myFoods: load(STORAGE_KEYS.myFoods, []),
+  // Fecha (AAAA-MM-DD) a partir de la cual se muestran los gráficos, o
+  // null para ver todo el historial. No borra nada, solo oculta lo de
+  // antes de esa fecha en las gráficas de Gráficos.
+  graficosStart: load(STORAGE_KEYS.graficosStart, null)
 };
+
+// true si la fecha dada es igual o posterior al filtro "ver desde" de
+// Gráficos (o si no hay filtro puesto, en cuyo caso siempre es true).
+function afterGraficosStart(dateLike) {
+  if (!state.graficosStart) return true;
+  return localDateKey(new Date(dateLike)) >= state.graficosStart;
+}
 
 /* ---------- Helper: comprimir una imagen a base64 ---------- */
 function compressImage(file, maxSize, quality) {
@@ -2014,7 +2026,7 @@ function renderGoalStatus() {
 }
 
 function renderFatChart() {
-  const withFat = state.weights.filter(w => w.fat != null);
+  const withFat = state.weights.filter(w => w.fat != null && afterGraficosStart(w.date));
   const ctx = document.getElementById('fatChart');
   document.getElementById('graficosWeightEmpty').style.display = state.weights.length ? 'none' : 'block';
   if (fatChartInstance) fatChartInstance.destroy();
@@ -2038,7 +2050,7 @@ function renderFatChart() {
 }
 
 function renderMuscleChart() {
-  const withMuscle = state.weights.filter(w => w.muscle != null);
+  const withMuscle = state.weights.filter(w => w.muscle != null && afterGraficosStart(w.date));
   const ctx = document.getElementById('muscleChart');
   if (muscleChartInstance) muscleChartInstance.destroy();
   muscleChartInstance = new Chart(ctx, {
@@ -2064,7 +2076,7 @@ function renderMuscleChart() {
 // el histórico — no solo la semana actual como el gráfico de Entrenos.
 function aggregateWorkoutsByWeek() {
   const map = {};
-  state.workouts.forEach(w => {
+  state.workouts.filter(w => afterGraficosStart(w.date)).forEach(w => {
     const key = localDateKey(startOfWeek(new Date(w.date)));
     if (!map[key]) map[key] = { kcal: 0, sessions: 0 };
     map[key].kcal += w.calories;
@@ -2082,7 +2094,7 @@ function aggregateWorkoutsByWeek() {
 // con otro en vez de solo el total de una semana con otra.
 function aggregateWorkoutsByDay(maxDays = 30) {
   const map = {};
-  state.workouts.forEach(w => {
+  state.workouts.filter(w => afterGraficosStart(w.date)).forEach(w => {
     const key = localDateKey(new Date(w.date));
     if (!map[key]) map[key] = { kcal: 0, sessions: 0 };
     map[key].kcal += w.calories;
@@ -2147,14 +2159,14 @@ function renderWorkoutHistoryCharts() {
 // con los últimos N días que tengan algo anotado.
 function aggregateFoodLogByDay(maxDays = 30) {
   const map = {};
-  (state.foodLog || []).forEach(e => {
+  (state.foodLog || []).filter(e => afterGraficosStart(e.date)).forEach(e => {
     const key = localDateKey(new Date(e.date));
     if (!map[key]) map[key] = { kcal: 0, p: 0 };
     map[key].kcal += e.kcal;
     map[key].p += e.p;
   });
   // Días de menú marcados como "comido" — cuentan igual que el diario.
-  Object.entries(state.menuConsumedLog || {}).forEach(([key, t]) => {
+  Object.entries(state.menuConsumedLog || {}).filter(([key]) => afterGraficosStart(key)).forEach(([key, t]) => {
     if (!map[key]) map[key] = { kcal: 0, p: 0 };
     map[key].kcal += t.kcal;
     map[key].p += t.p;
@@ -2206,17 +2218,17 @@ function renderFoodHistoryCharts() {
 // (báscula real > grasa% > altura), con tu peso más reciente.
 function aggregateBalanceByDay(maxDays = 30) {
   const map = {};
-  (state.foodLog || []).forEach(e => {
+  (state.foodLog || []).filter(e => afterGraficosStart(e.date)).forEach(e => {
     const key = localDateKey(new Date(e.date));
     if (!map[key]) map[key] = { consumed: 0, burned: 0 };
     map[key].consumed += e.kcal;
   });
   // Días de menú marcados como "comido" — cuentan igual que el diario.
-  Object.entries(state.menuConsumedLog || {}).forEach(([key, t]) => {
+  Object.entries(state.menuConsumedLog || {}).filter(([key]) => afterGraficosStart(key)).forEach(([key, t]) => {
     if (!map[key]) map[key] = { consumed: 0, burned: 0 };
     map[key].consumed += t.kcal;
   });
-  state.workouts.forEach(w => {
+  state.workouts.filter(w => afterGraficosStart(w.date)).forEach(w => {
     const key = localDateKey(new Date(w.date));
     if (!map[key]) map[key] = { consumed: 0, burned: 0 };
     map[key].burned += w.calories;
@@ -2270,6 +2282,8 @@ function renderBalanceChart() {
 let fatChartInstance, muscleChartInstance, workoutHistoryChartInstance, sessionsHistoryChartInstance, calorieIntakeChartInstance, proteinIntakeChartInstance, balanceChartInstance;
 
 function renderGraficos() {
+  const startInput = document.getElementById('graficosStartInput');
+  if (startInput) startInput.value = state.graficosStart || '';
   renderGoalStatus();
   renderFatChart();
   renderMuscleChart();
@@ -2278,6 +2292,22 @@ function renderGraficos() {
   renderBalanceChart();
   renderMenuConsumedList();
 }
+
+document.getElementById('graficosStartInput').addEventListener('change', (e) => {
+  state.graficosStart = e.target.value || null;
+  save(STORAGE_KEYS.graficosStart, state.graficosStart);
+  renderGraficos();
+});
+document.getElementById('graficosStartTodayBtn').addEventListener('click', () => {
+  state.graficosStart = todayKey();
+  save(STORAGE_KEYS.graficosStart, state.graficosStart);
+  renderGraficos();
+});
+document.getElementById('graficosStartClearBtn').addEventListener('click', () => {
+  state.graficosStart = null;
+  save(STORAGE_KEYS.graficosStart, null);
+  renderGraficos();
+});
 
 /* ---------- INICIO ---------- */
 renderPhotos();
