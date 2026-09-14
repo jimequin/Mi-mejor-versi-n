@@ -973,6 +973,30 @@ function deleteWorkout(id) {
   renderWorkouts();
 }
 
+// Pasos de hoy — no hay forma de conectar de verdad con Zepp Life ni
+// Google Fit (son apps cerradas, sin API pública que cualquiera pueda
+// usar), así que se escriben a mano. Se calculan los minutos caminados
+// a un ritmo medio (~100 pasos/min) y las kcal con la misma fórmula que
+// el resto de entrenos (MET de caminar = 3.5), y se guarda como un
+// entreno más para que cuente en Gráficos igual que cualquier otro.
+document.getElementById('stepsBtn').addEventListener('click', () => {
+  const input = document.getElementById('stepsInput');
+  const steps = parseInt(input.value, 10);
+  if (!steps) { alert('Escribe cuántos pasos antes de guardar.'); return; }
+  const minutes = Math.round(steps / 100);
+  const calories = computeCalories(3.5, minutes, getLastWeight());
+  state.workouts.push({
+    id: Date.now(),
+    date: new Date().toISOString(),
+    sport: 'Caminar (pasos)',
+    minutes, calories,
+    exercises: [{ name: `${steps} pasos`, kg: null }]
+  });
+  save(STORAGE_KEYS.workouts, state.workouts);
+  input.value = '';
+  renderWorkouts();
+});
+
 function startOfWeek(d) {
   const date = new Date(d);
   const day = date.getDay() === 0 ? 7 : date.getDay(); // lunes = 1

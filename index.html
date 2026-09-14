@@ -110,6 +110,15 @@
         <ul id="mobilityHipList" class="plan-list"></ul>
       </div>
 
+      <div class="card margin-card">
+        <p class="eyebrow">🚶 Pasos de hoy</p>
+        <p class="hint-text">No hay forma de conectar la app directamente con Zepp Life ni Google Fit (son apps cerradas, sin puerta de entrada pública) — así que de momento escribe aquí los pasos que marque tu móvil/reloj y la app calcula las kcal caminadas con tu peso, y lo cuenta como un entreno más.</p>
+        <div class="row-form">
+          <input type="number" id="stepsInput" placeholder="Pasos de hoy" inputmode="numeric">
+          <button type="button" id="stepsBtn" class="btn btn-lime">Guardar</button>
+        </div>
+      </div>
+
       <!-- Campos ocultos: el cálculo de kcal (MET por tipo de entreno) los
            sigue usando la revisión de la foto de entreno de abajo, que es
            ahora la única forma de registrar un entreno. -->
