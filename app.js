@@ -1559,6 +1559,7 @@ const FOOD_DB = [
   { name: 'Plátano', kcal: 89, p: 1.1, c: 23, f: 0.3 },
   { name: 'Manzana', kcal: 52, p: 0.3, c: 14, f: 0.2 },
   { name: 'Frutos secos (mix)', kcal: 607, p: 20, c: 20, f: 54 },
+  { name: 'Galleta/pasta de té', kcal: 470, p: 6, c: 65, f: 20 },
   { name: 'Aguacate', kcal: 160, p: 2, c: 9, f: 15 },
   { name: 'Leche semidesnatada', kcal: 46, p: 3.3, c: 4.9, f: 1.6 }
 ];
@@ -1596,7 +1597,8 @@ document.getElementById('customFoodForm').addEventListener('submit', (e) => {
   const p = parseFloat(document.getElementById('customFoodProtein').value) || 0;
   const c = parseFloat(document.getElementById('customFoodCarbs').value) || 0;
   const f = parseFloat(document.getElementById('customFoodFat').value) || 0;
-  if (!name || !kcal) return;
+  if (!name) { alert('Ponle un nombre al alimento antes de añadirlo.'); return; }
+  if (!kcal) { alert('Faltan las kcal totales — sin eso no se puede añadir. Si no las sabes exactas, pon una estimación (mira el envase o busca "kcal [nombre del alimento]").'); return; }
   addFoodEntry({ id: Date.now(), date: new Date().toISOString(), name, grams, kcal, p, c, f });
   e.target.reset();
   document.getElementById('customFoodGrams').value = 100;
