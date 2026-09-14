@@ -760,6 +760,18 @@ let planCompletions = load(STORAGE_KEYS.planCompletions, { squat: 0, hip: 0 });
 // Qué días concretos ya se contaron, para no sumar dos veces el mismo día
 let completionCounted = load(STORAGE_KEYS.completionCounted, []);
 
+// Fecha en formato AAAA-MM-DD según tu reloj/zona horaria local — NO
+// usar .toISOString() para esto: convierte a UTC, y España va por
+// delante (+1/+2h), así que de madrugada (o incluso durante el día,
+// una vez fijada la hora a medianoche local) .toISOString() se queda
+// en el día anterior. Con getFullYear/getMonth/getDate no hay ese lío.
+function localDateKey(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function getMondayOfCurrentWeek() {
   const d = new Date();
   const day = d.getDay() === 0 ? 7 : d.getDay(); // lunes = 1 ... domingo = 7
@@ -771,10 +783,10 @@ function dateKeyForDayIndex(idx) {
   const monday = getMondayOfCurrentWeek();
   const d = new Date(monday);
   d.setDate(monday.getDate() + idx);
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
 }
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey(new Date());
 }
 
 let selectedPlanDay = (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1); // índice 0=lunes
@@ -1785,7 +1797,7 @@ function deleteFoodEntry(id) {
   renderFoodLog();
 }
 function renderFoodLog() {
-  const todayEntries = (state.foodLog || []).filter(e => e.date.slice(0, 10) === todayKey());
+  const todayEntries = (state.foodLog || []).filter(e => localDateKey(new Date(e.date)) === todayKey());
   const foodListEl = document.getElementById('foodList');
   document.getElementById('foodEmpty').style.display = todayEntries.length ? 'none' : 'block';
 
@@ -2091,7 +2103,7 @@ function renderMuscleChart() {
 function aggregateWorkoutsByWeek() {
   const map = {};
   state.workouts.forEach(w => {
-    const key = startOfWeek(new Date(w.date)).toISOString().slice(0, 10);
+    const key = localDateKey(startOfWeek(new Date(w.date)));
     if (!map[key]) map[key] = { kcal: 0, sessions: 0 };
     map[key].kcal += w.calories;
     map[key].sessions += 1;
@@ -2142,7 +2154,7 @@ function renderWorkoutHistoryCharts() {
 function aggregateFoodLogByDay(maxDays = 30) {
   const map = {};
   (state.foodLog || []).forEach(e => {
-    const key = e.date.slice(0, 10);
+    const key = localDateKey(new Date(e.date));
     if (!map[key]) map[key] = { kcal: 0, p: 0 };
     map[key].kcal += e.kcal;
     map[key].p += e.p;
@@ -2201,7 +2213,7 @@ function renderFoodHistoryCharts() {
 function aggregateBalanceByDay(maxDays = 30) {
   const map = {};
   (state.foodLog || []).forEach(e => {
-    const key = e.date.slice(0, 10);
+    const key = localDateKey(new Date(e.date));
     if (!map[key]) map[key] = { consumed: 0, burned: 0 };
     map[key].consumed += e.kcal;
   });
@@ -2211,7 +2223,7 @@ function aggregateBalanceByDay(maxDays = 30) {
     map[key].consumed += t.kcal;
   });
   state.workouts.forEach(w => {
-    const key = w.date.slice(0, 10);
+    const key = localDateKey(new Date(w.date));
     if (!map[key]) map[key] = { consumed: 0, burned: 0 };
     map[key].burned += w.calories;
   });
