@@ -18,7 +18,8 @@ const STORAGE_KEYS = {
   planSeries: 'cuaderno.planSeries',
   planCompletions: 'cuaderno.planCompletions',
   completionCounted: 'cuaderno.completionCounted',
-  autoLoggedKeys: 'cuaderno.autoLoggedKeys'
+  autoLoggedKeys: 'cuaderno.autoLoggedKeys',
+  menuConsumedLog: 'cuaderno.menuConsumedLog'
 };
 
 function load(key, fallback) {
@@ -40,7 +41,11 @@ let state = {
   workouts: load(STORAGE_KEYS.workouts, []),
   shopping: load(STORAGE_KEYS.shopping, []),
   foodLog: load(STORAGE_KEYS.foodLog, []),
-  menuHistory: load(STORAGE_KEYS.menuHistory, [])
+  menuHistory: load(STORAGE_KEYS.menuHistory, []),
+  // Días de "Esta semana" marcados como "comido" — así lo del menú
+  // cuenta también en el consumo calórico y en el balance de Gráficos.
+  // Clave: fecha real (AAAA-MM-DD) del día de esa semana.
+  menuConsumedLog: load(STORAGE_KEYS.menuConsumedLog, {})
 };
 
 /* ---------- Helper: comprimir una imagen a base64 ---------- */
@@ -374,11 +379,21 @@ async function addFolderReviewItem(type, key, file) {
       workoutBlocks = parseWorkoutBlocks(data.text || '');
       if (workoutBlocks.length) {
         blocksEl.innerHTML = `
-          <p class="menu-field-label">Bloques detectados (revísalos)</p>
-          ${workoutBlocks.map(b => `
+          <p class="menu-field-label">Bloques detectados — pon las rondas que hiciste y el peso donde aplique</p>
+          ${workoutBlocks.map((b, bi) => `
             <div class="workout-block">
               <p class="workout-block-title">${b.title}</p>
-              <ul class="workout-block-items">${b.items.map(i => `<li>${i}</li>`).join('')}</ul>
+              <div class="row-form">
+                <input type="number" min="0" class="block-rounds-input" data-block="${bi}" placeholder="Rondas completadas">
+              </div>
+              <ul class="workout-block-items">
+                ${b.items.map((item, ii) => `
+                  <li>
+                    <span>${item}</span>
+                    <input type="number" step="0.5" class="exercise-kg-input" data-block="${bi}" data-item="${ii}" placeholder="kg">
+                  </li>
+                `).join('')}
+              </ul>
             </div>
           `).join('')}
         `;
@@ -424,22 +439,43 @@ async function addFolderReviewItem(type, key, file) {
       wrap.remove();
     });
   } else {
+    const sportOptions = [...document.getElementById('sportInput').options]
+      .filter(o => o.value !== '')
+      .map(o => `<option data-met="${o.dataset.met}" ${o.textContent === 'Crossfit / Gimnasio' ? 'selected' : ''}>${o.textContent}</option>`)
+      .join('');
     fieldsEl.innerHTML = `
-      <input type="text" data-field="sport" placeholder="Tipo de entreno" value="Entreno">
-      <input type="number" data-field="minutes" placeholder="Minutos" value="${ocrData.minutes ?? ''}">
-      <input type="number" data-field="calories" placeholder="Kcal" value="${ocrData.calories ?? ''}">
+      <select data-field="sport">${sportOptions}</select>
+      <div class="row-form">
+        <input type="number" data-field="minutes" placeholder="Minutos totales" value="${ocrData.minutes ?? ''}">
+        <input type="number" data-field="calories" placeholder="Kcal" value="${ocrData.calories ?? ''}">
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" data-recalc-kcal>Calcular kcal con mi peso/metabolismo</button>
     `;
+    const sportSelect = fieldsEl.querySelector('[data-field="sport"]');
+    const minutesInputEl = fieldsEl.querySelector('[data-field="minutes"]');
+    const caloriesInputEl = fieldsEl.querySelector('[data-field="calories"]');
+    wrap.querySelector('[data-recalc-kcal]').addEventListener('click', () => {
+      const minutes = parseInt(minutesInputEl.value, 10);
+      if (!minutes) { alert('Pon los minutos totales del entreno antes de calcular.'); return; }
+      const met = parseFloat(sportSelect.selectedOptions[0]?.dataset.met) || 6;
+      caloriesInputEl.value = computeCalories(met, minutes, getLastWeight());
+    });
     wrap.querySelector('[data-save]').addEventListener('click', () => {
-      const sport = fieldsEl.querySelector('[data-field="sport"]').value.trim() || 'Entreno';
-      const minutes = parseInt(fieldsEl.querySelector('[data-field="minutes"]').value, 10);
-      const calories = parseInt(fieldsEl.querySelector('[data-field="calories"]').value, 10);
-      if (!minutes || !calories) { alert('Pon minutos y kcal antes de guardar.'); return; }
-      // Cada línea de cada bloque se guarda como un ejercicio, con el
-      // nombre del bloque delante (ej. "Warm up: Cat-cow Mobility") —
-      // no hay kg porque son series/repes, no peso.
-      const exercises = workoutBlocks.flatMap(b => b.items.map(item => ({
-        name: `${b.title}: ${item}`, kg: null
-      })));
+      const sport = sportSelect.selectedOptions[0]?.textContent || 'Entreno';
+      const minutes = parseInt(minutesInputEl.value, 10);
+      const calories = parseInt(caloriesInputEl.value, 10);
+      if (!minutes || !calories) { alert('Pon los minutos y las kcal (usa "Calcular kcal" si no las sabes) antes de guardar.'); return; }
+      // Cada línea de cada bloque se guarda como un ejercicio, con las
+      // rondas del bloque y el kg puesto (si lo hay) — así puedes ver
+      // el peso en los ejercicios que lo llevan y nada en los que no.
+      const exercises = workoutBlocks.flatMap((b, bi) => {
+        const rounds = blocksEl.querySelector(`.block-rounds-input[data-block="${bi}"]`)?.value;
+        const roundsTxt = rounds ? ` (${rounds} rondas)` : '';
+        return b.items.map((item, ii) => {
+          const kgVal = blocksEl.querySelector(`.exercise-kg-input[data-block="${bi}"][data-item="${ii}"]`)?.value;
+          return { name: `${b.title}${roundsTxt}: ${item}`, kg: kgVal ? parseFloat(kgVal) : null };
+        });
+      });
       state.workouts.push({
         id: Date.now(),
         date: new Date(file.lastModified || Date.now()).toISOString(),
@@ -902,6 +938,17 @@ function estimateBMR(kg) {
   return null;
 }
 
+// Fórmula compartida: tu metabolismo basal repartido en esas horas,
+// más el extra que quemas por hacer ejercicio por encima de estar en
+// reposo. La usan tanto el formulario manual como la revisión de
+// fotos de entreno.
+function computeCalories(met, minutes, kg) {
+  const hours = minutes / 60;
+  const bmr = estimateBMR(kg);
+  if (bmr) return Math.round((bmr / 24) * hours + (met - 1) * kg * hours);
+  return Math.round(met * kg * hours);
+}
+
 function estimateCalories() {
   const select = document.getElementById('sportInput');
   const met = parseFloat(select.selectedOptions[0]?.dataset.met) || 6;
@@ -911,19 +958,11 @@ function estimateCalories() {
     return null;
   }
   const kg = getLastWeight();
-  const hours = minutes / 60;
+  const kcal = computeCalories(met, minutes, kg);
   const bmr = estimateBMR(kg);
-  let kcal, hint;
-  if (bmr) {
-    // Tu metabolismo basal repartido en esas horas, más el extra que
-    // quemas por hacer ejercicio por encima de estar en reposo.
-    kcal = Math.round((bmr / 24) * hours + (met - 1) * kg * hours);
-    hint = `Estimado con tu peso (${kg} kg) y tu metabolismo basal (${Math.round(bmr)} kcal/día).`;
-  } else {
-    kcal = Math.round(met * kg * hours);
-    hint = `Estimado solo con tu peso (${kg} kg). Añade tu altura en Nutrición o una medición con grasa% para un cálculo más preciso.`;
-  }
-  calorieHint.textContent = hint;
+  calorieHint.textContent = bmr
+    ? `Estimado con tu peso (${kg} kg) y tu metabolismo basal (${Math.round(bmr)} kcal/día).`
+    : `Estimado solo con tu peso (${kg} kg). Añade tu altura en Nutrición o una medición con grasa% para un cálculo más preciso.`;
   return kcal;
 }
 
@@ -1318,14 +1357,14 @@ function parseCantidadGrams(cantidadTexto, gramsPerUnit) {
   return null;
 }
 
-function sumMealMacros(items, totals) {
+function sumMealMacros(items, totals, unrecognized) {
   let ok = true;
   (items || []).forEach(ing => {
     if (!ing.texto || !ing.cantidad) return;
     const food = matchFoodMacros(ing.texto);
-    if (!food) { ok = false; return; }
+    if (!food) { ok = false; if (unrecognized) unrecognized.push(ing.texto); return; }
     const grams = parseCantidadGrams(ing.cantidad, food.gramsPerUnit);
-    if (grams == null) { ok = false; return; }
+    if (grams == null) { ok = false; if (unrecognized) unrecognized.push(ing.texto); return; }
     const ratio = grams / 100;
     totals.kcal += food.kcal * ratio;
     totals.p += food.p * ratio;
@@ -1354,15 +1393,23 @@ function renderMealBlock(items, dayIdx, mealKey, label) {
 
 function renderDayTotals(d, dayIdx) {
   const totals = { kcal: 0, p: 0, c: 0, f: 0 };
-  const okComida = sumMealMacros(d.comida, totals);
-  const okCena = sumMealMacros(d.cena, totals);
+  const unrecognized = [];
+  const okComida = sumMealMacros(d.comida, totals, unrecognized);
+  const okCena = sumMealMacros(d.cena, totals, unrecognized);
   const note = (okComida && okCena)
     ? ''
-    : '<span class="menu-totals-note">* estimación aproximada — algún ingrediente o cantidad no se ha podido calcular (revísalo o dale un formato tipo "150 g")</span>';
+    : `<span class="menu-totals-note">* no reconozco "${unrecognized.join('", "')}" — revisa cómo está escrito, o dale un formato tipo "150 g" a la cantidad. El resto de ingredientes sí está contado arriba.</span>`;
+  const isCurrent = activeMenuWeek === 'current';
+  const dateKey = dateKeyForDayIndex(dayIdx);
+  const already = state.menuConsumedLog && state.menuConsumedLog[dateKey];
+  const comidoBtn = isCurrent
+    ? `<button type="button" class="btn ${already ? 'btn-lime' : 'btn-ghost'} btn-sm" data-mark-comido="${dayIdx}">${already ? '✓ Comido (contado en Gráficos)' : 'Marcar como comido hoy'}</button>`
+    : '';
   return `
     <div class="menu-day-totals" data-totals-for="${dayIdx}">
       🔥 <b>${Math.round(totals.kcal)} kcal</b> · P ${Math.round(totals.p)}g · C ${Math.round(totals.c)}g · G ${Math.round(totals.f)}g
       ${note}
+      ${comidoBtn}
     </div>
   `;
 }
@@ -1469,6 +1516,33 @@ document.querySelectorAll('#menuWeekPills .week-pill').forEach(btn => {
     activeMenuWeek = btn.dataset.week;
     renderMenuPlan();
   });
+});
+
+// Marca (o desmarca) el día como comido: guarda sus kcal/macros contra
+// la fecha real de esa semana, para que cuenten como "consumidas" en
+// el consumo calórico y el balance de Gráficos — sin esto, el menú
+// planeado nunca llegaba a esos gráficos (solo lo hacía el Diario de
+// comidas de la pestaña Compra).
+function markMenuDayComido(dayIdx) {
+  const d = getMenuPlanState()[dayIdx];
+  const dateKey = dateKeyForDayIndex(dayIdx);
+  if (state.menuConsumedLog[dateKey]) {
+    delete state.menuConsumedLog[dateKey];
+  } else {
+    const totals = { kcal: 0, p: 0, c: 0, f: 0 };
+    sumMealMacros(d.comida, totals);
+    sumMealMacros(d.cena, totals);
+    state.menuConsumedLog[dateKey] = totals;
+  }
+  save(STORAGE_KEYS.menuConsumedLog, state.menuConsumedLog);
+  renderMenuPlan();
+  if (typeof renderGraficos === 'function') renderGraficos();
+}
+
+document.getElementById('menuPlan').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-mark-comido]');
+  if (!btn) return;
+  markMenuDayComido(parseInt(btn.dataset.markComido, 10));
 });
 
 document.getElementById('resetMenuBtn').addEventListener('click', () => {
@@ -2073,6 +2147,12 @@ function aggregateFoodLogByDay(maxDays = 30) {
     map[key].kcal += e.kcal;
     map[key].p += e.p;
   });
+  // Días de menú marcados como "comido" — cuentan igual que el diario.
+  Object.entries(state.menuConsumedLog || {}).forEach(([key, t]) => {
+    if (!map[key]) map[key] = { kcal: 0, p: 0 };
+    map[key].kcal += t.kcal;
+    map[key].p += t.p;
+  });
   const days = Object.keys(map).sort().slice(-maxDays);
   return {
     labels: days.map(k => new Date(k).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })),
@@ -2083,7 +2163,7 @@ function aggregateFoodLogByDay(maxDays = 30) {
 
 function renderFoodHistoryCharts() {
   const { labels, kcal, protein } = aggregateFoodLogByDay();
-  document.getElementById('graficosFoodEmpty').style.display = (state.foodLog || []).length ? 'none' : 'block';
+  document.getElementById('graficosFoodEmpty').style.display = labels.length ? 'none' : 'block';
 
   const ctx1 = document.getElementById('calorieIntakeChart');
   if (calorieIntakeChartInstance) calorieIntakeChartInstance.destroy();
@@ -2125,6 +2205,11 @@ function aggregateBalanceByDay(maxDays = 30) {
     if (!map[key]) map[key] = { consumed: 0, burned: 0 };
     map[key].consumed += e.kcal;
   });
+  // Días de menú marcados como "comido" — cuentan igual que el diario.
+  Object.entries(state.menuConsumedLog || {}).forEach(([key, t]) => {
+    if (!map[key]) map[key] = { consumed: 0, burned: 0 };
+    map[key].consumed += t.kcal;
+  });
   state.workouts.forEach(w => {
     const key = w.date.slice(0, 10);
     if (!map[key]) map[key] = { consumed: 0, burned: 0 };
@@ -2144,8 +2229,12 @@ function renderBalanceChart() {
   document.getElementById('graficosBalanceEmpty').style.display = labels.length ? 'none' : 'block';
   const ctx = document.getElementById('balanceChart');
   if (balanceChartInstance) balanceChartInstance.destroy();
+  // Números encima de cada barra (con el plugin datalabels) para que
+  // se lea de un vistazo cuánto es cada una, sin tener que adivinar
+  // por la altura.
   balanceChartInstance = new Chart(ctx, {
     type: 'bar',
+    plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : [],
     data: {
       labels,
       datasets: [
@@ -2154,7 +2243,16 @@ function renderBalanceChart() {
       ]
     },
     options: {
-      plugins: { legend: { display: true, labels: { color: '#8A9298', font: { size: 10 } } } },
+      plugins: {
+        legend: { display: true, labels: { color: '#8A9298', font: { size: 10 } } },
+        datalabels: {
+          anchor: 'end',
+          align: 'top',
+          color: '#F2F2ED',
+          font: { size: 9, weight: 'bold' },
+          formatter: (v) => v ? Math.round(v) : ''
+        }
+      },
       scales: {
         x: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { display: false } },
         y: { ticks: { color: '#8A9298', font: { size: 10 } }, grid: { color: '#2A3338' } }

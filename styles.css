@@ -457,6 +457,11 @@ input:focus, select:focus, button:focus{
   font-size: 12.5px;
   line-height: 1.5;
 }
+.menu-day-totals [data-mark-comido]{
+  display: block;
+  margin-top: 8px;
+  width: 100%;
+}
 .menu-totals-note{
   display:block;
   margin-top: 4px;
@@ -702,12 +707,29 @@ input:focus, select:focus, button:focus{
   margin: 0 0 4px;
 }
 .workout-block-items{
-  margin: 0;
-  padding-left: 16px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
   font-size: 12px;
   line-height: 1.5;
   color: var(--text);
 }
+.workout-block-items li{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px dashed var(--card-line);
+}
+.workout-block-items li:first-child{ border-top: none; }
+.workout-block-items li span{ flex: 1; }
+.workout-block-items .exercise-kg-input{
+  width: 56px;
+  flex: none;
+  padding: 4px 6px;
+  font-size: 11.5px;
+}
+.block-rounds-input{ max-width: 160px; }
 .folder-review-item pre{
   white-space: pre-wrap;
   word-break: break-word;
