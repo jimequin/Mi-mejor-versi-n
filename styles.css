@@ -384,23 +384,6 @@ input:focus, select:focus, button:focus{
   margin: -4px 0 8px;
 }
 
-/* EJERCICIOS DENTRO DEL ENTRENO */
-.exercise-rows{
-  display:flex;
-  flex-direction:column;
-  gap: 6px;
-}
-.exercise-row{
-  display:flex;
-  gap: 6px;
-  align-items:center;
-}
-.exercise-row input[type="text"]{ flex: 2; }
-.exercise-row input[type="number"]{ flex: 1; }
-.exercise-row .del{
-  background:none; border:none; color: var(--muted); cursor:pointer; font-size: 18px; flex-shrink:0;
-}
-
 /* MENÚ SEMANAL */
 .menu-plan{
   display:flex;

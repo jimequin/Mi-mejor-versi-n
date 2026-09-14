@@ -119,41 +119,21 @@
         <ul id="mobilityHipList" class="plan-list"></ul>
       </div>
 
-      <div class="card margin-card">
-        <p class="eyebrow">Registrar entreno</p>
-        <form id="workoutForm" class="stack-form">
-          <select id="sportInput" required>
-            <option value="" disabled selected>Tipo de entreno</option>
-            <option data-met="8">Crossfit / Gimnasio</option>
-            <option data-met="6">Fuerza</option>
-            <option data-met="9">Hyrox</option>
-            <option data-met="8">Calistenia</option>
-            <option data-met="9.8">Correr</option>
-            <option data-met="7">Fútbol</option>
-            <option data-met="7.5">Ciclismo</option>
-            <option data-met="8">Natación</option>
-            <option data-met="6">Otro</option>
-          </select>
-          <input type="number" id="minutesInput" placeholder="Minutos" required inputmode="numeric">
-
-          <p class="eyebrow" style="margin-top:6px;">Ejercicios del entreno (opcional)</p>
-          <div id="exerciseRows" class="exercise-rows"></div>
-          <button type="button" id="addExerciseBtn" class="btn btn-ghost">+ Añadir ejercicio</button>
-
-          <div class="row-form" style="align-items:center; margin-top:6px;">
-            <input type="number" id="caloriesInput" placeholder="Kcal gastadas (o pulsa Calcular)" inputmode="numeric">
-            <button type="button" id="estimateCaloriesBtn" class="btn btn-ghost">Calcular solo</button>
-          </div>
-          <span class="hint-text" id="calorieHint"></span>
-
-          <label class="file-label">
-            📷 Adjuntar captura (app de entreno, reloj, etc.) — para consultar luego
-            <input type="file" id="workoutPhotoInput" accept="image/*" hidden>
-          </label>
-          <span id="workoutPhotoName" class="file-name"></span>
-          <button type="submit" class="btn btn-coral">Guardar entreno</button>
-        </form>
-      </div>
+      <!-- Campos ocultos: el cálculo de kcal (MET por tipo de entreno) los
+           sigue usando la revisión de la foto de entreno de abajo, que es
+           ahora la única forma de registrar un entreno. -->
+      <select id="sportInput" hidden>
+        <option value="" disabled selected>Tipo de entreno</option>
+        <option data-met="8">Crossfit / Gimnasio</option>
+        <option data-met="6">Fuerza</option>
+        <option data-met="9">Hyrox</option>
+        <option data-met="8">Calistenia</option>
+        <option data-met="9.8">Correr</option>
+        <option data-met="7">Fútbol</option>
+        <option data-met="7.5">Ciclismo</option>
+        <option data-met="8">Natación</option>
+        <option data-met="6">Otro</option>
+      </select>
 
       <div class="card margin-card" id="workoutFolderCard">
         <p class="eyebrow">📁 Carpeta de fotos · Entreno</p>
