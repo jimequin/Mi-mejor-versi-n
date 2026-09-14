@@ -2116,9 +2116,41 @@ function aggregateWorkoutsByWeek() {
   };
 }
 
+// Igual que por semana, pero un punto por día — para comparar un día
+// con otro en vez de solo el total de una semana con otra.
+function aggregateWorkoutsByDay(maxDays = 30) {
+  const map = {};
+  state.workouts.forEach(w => {
+    const key = localDateKey(new Date(w.date));
+    if (!map[key]) map[key] = { kcal: 0, sessions: 0 };
+    map[key].kcal += w.calories;
+    map[key].sessions += 1;
+  });
+  const days = Object.keys(map).sort().slice(-maxDays);
+  return {
+    labels: days.map(k => new Date(k).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })),
+    kcal: days.map(k => map[k].kcal),
+    sessions: days.map(k => map[k].sessions)
+  };
+}
+
+let workoutChartView = 'semanas'; // 'dias' | 'semanas'
+
+document.querySelectorAll('#workoutViewPills .week-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    workoutChartView = btn.dataset.view;
+    renderWorkoutHistoryCharts();
+  });
+});
+
 function renderWorkoutHistoryCharts() {
-  const { labels, kcal, sessions } = aggregateWorkoutsByWeek();
+  document.querySelectorAll('#workoutViewPills .week-pill').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.view === workoutChartView);
+  });
+  const { labels, kcal, sessions } = workoutChartView === 'dias' ? aggregateWorkoutsByDay() : aggregateWorkoutsByWeek();
   document.getElementById('graficosWorkoutEmpty').style.display = state.workouts.length ? 'none' : 'block';
+  document.getElementById('workoutViewLabel').textContent = workoutChartView === 'dias' ? 'kcal por día' : 'kcal por semana (lunes-domingo)';
+  document.getElementById('sessionsViewLabel').textContent = workoutChartView === 'dias' ? 'Sesiones por día' : 'Sesiones por semana';
 
   const ctx1 = document.getElementById('workoutHistoryChart');
   if (workoutHistoryChartInstance) workoutHistoryChartInstance.destroy();
