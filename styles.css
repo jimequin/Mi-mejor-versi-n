@@ -500,6 +500,25 @@ input:focus, select:focus, button:focus{
 .menu-history-day:first-of-type{ margin-top: 8px; }
 .menu-history-day b{ color: var(--text); font-family: var(--font-mono); font-size: 11px; }
 
+/* BÚSQUEDA DE ALIMENTOS */
+.food-search-results{
+  display:flex;
+  flex-direction:column;
+  gap: 6px;
+  margin: 8px 0;
+}
+.search-result-item{
+  text-align:left;
+  background: var(--bg);
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.search-result-item:hover{ border-color: var(--lime); }
+
 /* DIARIO DE COMIDAS */
 .macro-row{
   display:flex;

@@ -1561,11 +1561,101 @@ const FOOD_DB = [
   { name: 'Frutos secos (mix)', kcal: 607, p: 20, c: 20, f: 54 },
   { name: 'Galleta/pasta de té', kcal: 470, p: 6, c: 65, f: 20 },
   { name: 'Aguacate', kcal: 160, p: 2, c: 9, f: 15 },
-  { name: 'Leche semidesnatada', kcal: 46, p: 3.3, c: 4.9, f: 1.6 }
+  { name: 'Leche semidesnatada', kcal: 46, p: 3.3, c: 4.9, f: 1.6 },
+  { name: 'Pechuga de pavo fiambre', kcal: 104, p: 18, c: 1.5, f: 2.5 },
+  { name: 'Jamón serrano', kcal: 241, p: 31, c: 0, f: 13 },
+  { name: 'Bacon/panceta', kcal: 541, p: 37, c: 1.4, f: 42 },
+  { name: 'Salchichas frescas', kcal: 260, p: 12, c: 2, f: 23 },
+  { name: 'Calamares', kcal: 92, p: 15, c: 3.1, f: 1.4 },
+  { name: 'Mejillones', kcal: 86, p: 12, c: 3.7, f: 2.2 },
+  { name: 'Boniato (cocido)', kcal: 90, p: 2, c: 20.5, f: 0.1 },
+  { name: 'Pan blanco', kcal: 265, p: 9, c: 49, f: 3.2 },
+  { name: 'Avena (copos, cruda)', kcal: 389, p: 16.9, c: 66, f: 6.9 },
+  { name: 'Cereales de desayuno (normales)', kcal: 380, p: 7, c: 84, f: 1.5 },
+  { name: 'Ñoquis (cocidos)', kcal: 155, p: 3.5, c: 31, f: 2 },
+  { name: 'Gulas', kcal: 80, p: 11, c: 1, f: 3 },
+  { name: 'Berenjena', kcal: 25, p: 1, c: 6, f: 0.2 },
+  { name: 'Cebolla', kcal: 40, p: 1.1, c: 9, f: 0.1 },
+  { name: 'Zanahoria', kcal: 41, p: 0.9, c: 10, f: 0.2 },
+  { name: 'Naranja', kcal: 47, p: 0.9, c: 12, f: 0.1 },
+  { name: 'Fresas', kcal: 32, p: 0.7, c: 7.7, f: 0.3 },
+  { name: 'Uvas', kcal: 69, p: 0.7, c: 18, f: 0.2 },
+  { name: 'Queso curado', kcal: 380, p: 25, c: 1.3, f: 31 },
+  { name: 'Mozzarella', kcal: 280, p: 22, c: 2.2, f: 21 },
+  { name: 'Yogur griego natural', kcal: 97, p: 9, c: 4, f: 5 },
+  { name: 'Leche entera', kcal: 61, p: 3.2, c: 4.8, f: 3.3 },
+  { name: 'Mantequilla', kcal: 717, p: 0.9, c: 0.1, f: 81 },
+  { name: 'Mayonesa', kcal: 680, p: 1, c: 2, f: 75 },
+  { name: 'Hummus', kcal: 166, p: 8, c: 14, f: 9.6 },
+  { name: 'Tofu', kcal: 76, p: 8, c: 1.9, f: 4.8 },
+  { name: 'Aceitunas', kcal: 145, p: 1, c: 4, f: 15 },
+  { name: 'Chocolate negro (70%)', kcal: 598, p: 7.8, c: 46, f: 43 },
+  { name: 'Miel', kcal: 304, p: 0.3, c: 82, f: 0 },
+  { name: 'Mermelada', kcal: 250, p: 0.3, c: 62, f: 0.1 },
+  { name: 'Café con leche (sin azúcar)', kcal: 30, p: 1.5, c: 2.5, f: 1.5 },
+  { name: 'Almendras', kcal: 579, p: 21, c: 22, f: 50 },
+  { name: 'Nueces', kcal: 607, p: 20, c: 20, f: 54 }
 ];
 
 const foodSelect = document.getElementById('foodSelect');
 foodSelect.innerHTML = FOOD_DB.map((f, idx) => `<option value="${idx}">${f.name}</option>`).join('');
+
+// Alimentos encontrados por búsqueda online (Open Food Facts, base de
+// datos abierta y gratuita — sin API key). Se van añadiendo a la
+// lista de arriba con un 🔍 delante, y funcionan igual que los fijos.
+let searchResultsDB = [];
+
+document.getElementById('foodSearchBtn').addEventListener('click', () => searchFoodOnline());
+document.getElementById('foodSearchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); searchFoodOnline(); }
+});
+
+async function searchFoodOnline() {
+  const query = document.getElementById('foodSearchInput').value.trim();
+  const resultsEl = document.getElementById('foodSearchResults');
+  if (!query) { resultsEl.innerHTML = ''; return; }
+  resultsEl.innerHTML = '<p class="hint-text">Buscando…</p>';
+  try {
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=8&lc=es`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const items = (data.products || [])
+      .filter(p => p.product_name && p.nutriments && p.nutriments['energy-kcal_100g'])
+      .slice(0, 8);
+    if (!items.length) {
+      resultsEl.innerHTML = '<p class="hint-text">Sin resultados — prueba otro nombre, o añádelo a mano abajo.</p>';
+      return;
+    }
+    resultsEl.innerHTML = items.map((p, idx) => `
+      <button type="button" class="search-result-item" data-idx="${idx}">
+        ${p.product_name}${p.brands ? ' · ' + p.brands : ''} — ${Math.round(p.nutriments['energy-kcal_100g'])} kcal/100g
+      </button>
+    `).join('');
+    resultsEl.querySelectorAll('.search-result-item').forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        const p = items[idx];
+        const n = p.nutriments;
+        searchResultsDB.push({
+          name: p.product_name + (p.brands ? ' (' + p.brands + ')' : ''),
+          kcal: n['energy-kcal_100g'] || 0,
+          p: n.proteins_100g || 0,
+          c: n.carbohydrates_100g || 0,
+          f: n.fat_100g || 0
+        });
+        const searchIdx = searchResultsDB.length - 1;
+        const opt = document.createElement('option');
+        opt.value = 'search-' + searchIdx;
+        opt.textContent = '🔍 ' + searchResultsDB[searchIdx].name;
+        foodSelect.appendChild(opt);
+        foodSelect.value = opt.value;
+        resultsEl.innerHTML = '<p class="hint-text">✓ Añadido a la lista de arriba (marcado con 🔍) — pon los gramos y dale a Añadir.</p>';
+      });
+    });
+  } catch (err) {
+    console.error('Error buscando alimento', err);
+    resultsEl.innerHTML = '<p class="hint-text">No se pudo buscar (¿sin conexión?). Añádelo a mano abajo.</p>';
+  }
+}
 
 document.getElementById('toggleCustomFood').addEventListener('click', () => {
   document.getElementById('customFoodForm').classList.toggle('hidden');
@@ -1573,7 +1663,10 @@ document.getElementById('toggleCustomFood').addEventListener('click', () => {
 
 document.getElementById('foodForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  const food = FOOD_DB[parseInt(foodSelect.value, 10)];
+  const selectedValue = foodSelect.value;
+  const food = selectedValue.startsWith('search-')
+    ? searchResultsDB[parseInt(selectedValue.slice(7), 10)]
+    : FOOD_DB[parseInt(selectedValue, 10)];
   const grams = parseFloat(document.getElementById('foodGramsInput').value) || 100;
   const ratio = grams / 100;
   addFoodEntry({
