@@ -307,13 +307,26 @@ function parseWorkoutBlocks(text) {
   let current = null;
   lines.forEach(line => {
     if (isHeader(line)) {
-      current = { title: line, items: [] };
+      // El primer bloque casi siempre es el calentamiento, aunque la
+      // lectura automática de esa línea salga rara o cortada — mejor
+      // ponerle un nombre claro que enseñarte el texto garabateado.
+      const title = (blocks.length === 0 && !HEADER_HINTS.test(line)) ? 'Calentamiento' : line;
+      current = { title, items: [] };
       blocks.push(current);
     } else if (current) {
       current.items.push(line);
     }
   });
   return blocks;
+}
+
+// Solo los ejercicios que suenan a que llevan peso externo (barra,
+// mancuernas...) enseñan la casilla de kg — el resto (movilidad, notas
+// de RPE, series a cuerpo libre) se queda solo con el texto. Si alguno
+// que sí la enseña en realidad lo hiciste sin peso, escribe "no" y no
+// se cuenta como número.
+function looksWeighted(itemText) {
+  return /\b(bb|db|barbell|dumbbell|kg|lb|deadlift|press|row|squat|clean|snatch|thruster|swing|curl|lunge|bench)\b/i.test(itemText);
 }
 
 async function scanFolder(type) {
@@ -410,7 +423,7 @@ async function addFolderReviewItem(type, key, file) {
                 ${b.items.map((item, ii) => `
                   <li>
                     <span>${item}</span>
-                    <input type="number" step="0.5" class="exercise-kg-input" data-block="${bi}" data-item="${ii}" placeholder="kg">
+                    ${looksWeighted(item) ? `<input type="text" inputmode="decimal" class="exercise-kg-input" data-block="${bi}" data-item="${ii}" placeholder="kg o &quot;no&quot;">` : ''}
                   </li>
                 `).join('')}
               </ul>
@@ -470,43 +483,48 @@ async function addFolderReviewItem(type, key, file) {
       .filter(o => o.value !== '')
       .map(o => `<option data-met="${o.dataset.met}" ${o.textContent === 'Crossfit / Gimnasio' ? 'selected' : ''}>${o.textContent}</option>`)
       .join('');
+    // Las clases siempre duran 1 hora (lo dijiste tú), así que los
+    // minutos no se preguntan — se fijan a 60 y ya está. Las kcal se
+    // calculan solas con tu peso/metabolismo en cuanto eliges el tipo
+    // de entreno, sin tener que pulsar nada ni saber el número.
+    const ENTRENO_MINUTES = 60;
     fieldsEl.innerHTML = `
       <select data-field="sport">${sportOptions}</select>
-      <div class="row-form">
-        <input type="number" data-field="minutes" placeholder="Minutos totales" value="${ocrData.minutes ?? 60}">
-        <input type="number" data-field="calories" placeholder="Kcal" value="${ocrData.calories ?? ''}">
-      </div>
-      <button type="button" class="btn btn-ghost btn-sm" data-recalc-kcal>Calcular kcal con mi peso/metabolismo</button>
+      <p class="hint-text" data-calories-preview>🔥 — kcal (calculado con tu peso, entreno de 60 min)</p>
     `;
     const sportSelect = fieldsEl.querySelector('[data-field="sport"]');
-    const minutesInputEl = fieldsEl.querySelector('[data-field="minutes"]');
-    const caloriesInputEl = fieldsEl.querySelector('[data-field="calories"]');
-    wrap.querySelector('[data-recalc-kcal]').addEventListener('click', () => {
-      const minutes = parseInt(minutesInputEl.value, 10);
-      if (!minutes) { alert('Pon los minutos totales del entreno antes de calcular.'); return; }
+    const caloriesPreview = fieldsEl.querySelector('[data-calories-preview]');
+    function calcCalories() {
       const met = parseFloat(sportSelect.selectedOptions[0]?.dataset.met) || 6;
-      caloriesInputEl.value = computeCalories(met, minutes, getLastWeight());
-    });
+      return computeCalories(met, ENTRENO_MINUTES, getLastWeight());
+    }
+    function updateCaloriesPreview() {
+      const kcal = calcCalories();
+      caloriesPreview.textContent = `🔥 ${kcal} kcal (calculado con tu peso, entreno de 60 min)`;
+      return kcal;
+    }
+    updateCaloriesPreview();
+    sportSelect.addEventListener('change', updateCaloriesPreview);
     wrap.querySelector('[data-save]').addEventListener('click', () => {
       const sport = sportSelect.selectedOptions[0]?.textContent || 'Entreno';
-      const minutes = parseInt(minutesInputEl.value, 10);
-      const calories = parseInt(caloriesInputEl.value, 10);
-      if (!minutes || !calories) { alert('Pon los minutos y las kcal (usa "Calcular kcal" si no las sabes) antes de guardar.'); return; }
+      const calories = calcCalories();
       // Cada línea de cada bloque se guarda como un ejercicio, con las
       // rondas del bloque y el kg puesto (si lo hay) — así puedes ver
       // el peso en los ejercicios que lo llevan y nada en los que no.
+      // Si escribes "no" en vez de un número, se guarda como sin peso.
       const exercises = workoutBlocks.flatMap((b, bi) => {
         const rounds = blocksEl.querySelector(`.block-rounds-input[data-block="${bi}"]`)?.value;
         const roundsTxt = rounds ? ` (${rounds} rondas)` : '';
         return b.items.map((item, ii) => {
-          const kgVal = blocksEl.querySelector(`.exercise-kg-input[data-block="${bi}"][data-item="${ii}"]`)?.value;
-          return { name: `${b.title}${roundsTxt}: ${item}`, kg: kgVal ? parseFloat(kgVal) : null };
+          const kgVal = blocksEl.querySelector(`.exercise-kg-input[data-block="${bi}"][data-item="${ii}"]`)?.value.trim();
+          const kgNum = kgVal ? parseFloat(kgVal) : NaN;
+          return { name: `${b.title}${roundsTxt}: ${item}`, kg: isNaN(kgNum) ? null : kgNum };
         });
       });
       state.workouts.push({
         id: Date.now(),
         date: new Date(file.lastModified || Date.now()).toISOString(),
-        sport, minutes, calories, exercises, photo: dataUrl
+        sport, minutes: ENTRENO_MINUTES, calories, exercises, photo: dataUrl
       });
       save(STORAGE_KEYS.workouts, state.workouts);
       renderWorkouts();
