@@ -19,7 +19,8 @@ const STORAGE_KEYS = {
   planCompletions: 'cuaderno.planCompletions',
   completionCounted: 'cuaderno.completionCounted',
   autoLoggedKeys: 'cuaderno.autoLoggedKeys',
-  menuConsumedLog: 'cuaderno.menuConsumedLog'
+  menuConsumedLog: 'cuaderno.menuConsumedLog',
+  myFoods: 'cuaderno.myFoods'
 };
 
 function load(key, fallback) {
@@ -45,7 +46,8 @@ let state = {
   // Días de "Esta semana" marcados como "comido" — así lo del menú
   // cuenta también en el consumo calórico y en el balance de Gráficos.
   // Clave: fecha real (AAAA-MM-DD) del día de esa semana.
-  menuConsumedLog: load(STORAGE_KEYS.menuConsumedLog, {})
+  menuConsumedLog: load(STORAGE_KEYS.menuConsumedLog, {}),
+  myFoods: load(STORAGE_KEYS.myFoods, [])
 };
 
 /* ---------- Helper: comprimir una imagen a base64 ---------- */
@@ -446,7 +448,7 @@ async function addFolderReviewItem(type, key, file) {
     fieldsEl.innerHTML = `
       <select data-field="sport">${sportOptions}</select>
       <div class="row-form">
-        <input type="number" data-field="minutes" placeholder="Minutos totales" value="${ocrData.minutes ?? ''}">
+        <input type="number" data-field="minutes" placeholder="Minutos totales" value="${ocrData.minutes ?? 60}">
         <input type="number" data-field="calories" placeholder="Kcal" value="${ocrData.calories ?? ''}">
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-recalc-kcal>Calcular kcal con mi peso/metabolismo</button>
@@ -530,22 +532,14 @@ async function setupFolderConnector(type, connectBtnId, scanBtnId, statusId) {
   await refreshStatus();
 }
 
-/* ---------- NUTRICIÓN: PESO ---------- */
-const weightForm = document.getElementById('weightForm');
-const weightInput = document.getElementById('weightInput');
-const weightPhotoInput = document.getElementById('weightPhotoInput');
-const weightPhotoName = document.getElementById('weightPhotoName');
+/* ---------- NUTRICIÓN: PESO ----------
+   El registro de peso/composición se hace solo a través de la foto de
+   la báscula (conecta la carpeta abajo) — igual que en Entrenos, sin
+   un formulario manual aparte.
+------------------------------------------------------------------- */
 const weightList = document.getElementById('weightList');
 const weightEmpty = document.getElementById('weightEmpty');
 let weightChart;
-let pendingWeightPhoto = null;
-
-weightPhotoInput.addEventListener('change', async () => {
-  const file = weightPhotoInput.files[0];
-  if (!file) return;
-  pendingWeightPhoto = await compressImage(file, 640, 0.7);
-  weightPhotoName.textContent = '✓ ' + file.name;
-});
 
 const TIPS = [
   'El desayuno no tiene que ser dulce: prueba con huevos y fruta.',
@@ -565,32 +559,6 @@ function showRandomTip() {
   const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
   document.getElementById('nutritionTip').textContent = tip;
 }
-
-weightForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const value = parseFloat(weightInput.value);
-  if (!value) return;
-  const entry = {
-    id: Date.now(),
-    date: new Date().toISOString(),
-    kg: value,
-    fat: parseFloat(document.getElementById('fatInput').value) || null,
-    muscle: parseFloat(document.getElementById('muscleInput').value) || null,
-    water: parseFloat(document.getElementById('waterInput').value) || null,
-    visceral: parseFloat(document.getElementById('visceralInput').value) || null,
-    bone: parseFloat(document.getElementById('boneInput').value) || null,
-    protein: parseFloat(document.getElementById('proteinInput').value) || null,
-    metabolism: parseFloat(document.getElementById('metabolismInput').value) || null,
-    photo: pendingWeightPhoto
-  };
-  state.weights.push(entry);
-  state.weights.sort((a, b) => new Date(a.date) - new Date(b.date));
-  save(STORAGE_KEYS.weights, state.weights);
-  weightForm.reset();
-  pendingWeightPhoto = null;
-  weightPhotoName.textContent = '';
-  renderWeights();
-});
 
 /* Altura para calcular IMC */
 const heightInput = document.getElementById('heightInput');
@@ -642,9 +610,30 @@ function renderWeights() {
   `;
   }).join('');
 
+  renderWeightChart();
+  if (typeof renderGraficos === 'function' && state.goals) renderGraficos();
+}
+
+// Qué métrica se ve ahora mismo en el gráfico de Evolución de Nutrición.
+const METRIC_LABELS = { kg: 'Peso (kg)', fat: 'Grasa %', muscle: 'Músculo', water: 'Agua %', visceral: 'Visceral', bone: 'Ósea (kg)' };
+let nutritionMetric = 'kg';
+
+document.querySelectorAll('#metricPills .week-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    nutritionMetric = btn.dataset.metric;
+    renderWeightChart();
+  });
+});
+
+function renderWeightChart() {
+  document.querySelectorAll('#metricPills .week-pill').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.metric === nutritionMetric);
+  });
+
+  const withMetric = nutritionMetric === 'kg' ? state.weights : state.weights.filter(w => w[nutritionMetric] != null);
   const ctx = document.getElementById('weightChart');
-  const labels = state.weights.map(w => new Date(w.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }));
-  const data = state.weights.map(w => w.kg);
+  const labels = withMetric.map(w => new Date(w.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }));
+  const data = withMetric.map(w => w[nutritionMetric]);
 
   if (weightChart) weightChart.destroy();
   weightChart = new Chart(ctx, {
@@ -652,6 +641,7 @@ function renderWeights() {
     data: {
       labels,
       datasets: [{
+        label: METRIC_LABELS[nutritionMetric],
         data,
         borderColor: '#C6F135',
         backgroundColor: 'rgba(198,241,53,0.12)',
@@ -669,8 +659,6 @@ function renderWeights() {
       }
     }
   });
-
-  if (typeof renderGraficos === 'function' && state.goals) renderGraficos();
 }
 
 /* ---------- PLAN SEMANAL ---------- */
@@ -1485,6 +1473,27 @@ document.getElementById('menuPlan').addEventListener('click', (e) => {
   markMenuDayComido(parseInt(btn.dataset.markComido, 10));
 });
 
+function deleteMenuConsumedDay(dateKey) {
+  delete state.menuConsumedLog[dateKey];
+  save(STORAGE_KEYS.menuConsumedLog, state.menuConsumedLog);
+  renderMenuPlan(); // por si ese día es visible ahora mismo, para que el botón se actualice
+  renderMenuConsumedList();
+  if (typeof renderGraficos === 'function') renderGraficos();
+}
+
+function renderMenuConsumedList() {
+  const listEl = document.getElementById('menuConsumedList');
+  if (!listEl) return;
+  const entries = Object.entries(state.menuConsumedLog || {}).sort((a, b) => b[0].localeCompare(a[0]));
+  document.getElementById('menuConsumedEmpty').style.display = entries.length ? 'none' : 'block';
+  listEl.innerHTML = entries.map(([dateKey, t]) => `
+    <div class="menu-history-day" style="display:flex; justify-content:space-between; align-items:center; border-top:none;">
+      <span>${new Date(dateKey).toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit' })} — ${Math.round(t.kcal)} kcal</span>
+      <button class="del" onclick="deleteMenuConsumedDay('${dateKey}')">✕</button>
+    </div>
+  `).join('');
+}
+
 document.getElementById('resetMenuBtn').addEventListener('click', () => {
   if (!confirm('¿Restaurar la plantilla genérica de esta semana? Perderás el menú que has editado.')) return;
   menuWeeks[activeMenuWeek] = normalizeMenuPlan(JSON.parse(JSON.stringify(DEFAULT_MENU_TEMPLATE)));
@@ -1612,8 +1621,19 @@ const FOOD_DB = [
   { name: 'Nueces', kcal: 607, p: 20, c: 20, f: 54 }
 ];
 
+// Alimentos que has escrito tú a mano alguna vez (con "+ Alimento no
+// listado") — se guardan en state.myFoods para no tener que volver a
+// teclear sus kcal/macros cada vez que los comes otra vez. Guardados
+// por 100g, para poder poner gramos distintos cada vez como con los demás.
 const foodSelect = document.getElementById('foodSelect');
-foodSelect.innerHTML = FOOD_DB.map((f, idx) => `<option value="${idx}">${f.name}</option>`).join('');
+function renderFoodSelectOptions() {
+  const current = foodSelect.value;
+  foodSelect.innerHTML =
+    FOOD_DB.map((f, idx) => `<option value="${idx}">${f.name}</option>`).join('') +
+    state.myFoods.map((f, idx) => `<option value="my-${idx}">⭐ ${f.name}</option>`).join('');
+  if (current) foodSelect.value = current;
+}
+renderFoodSelectOptions();
 
 // Alimentos encontrados por búsqueda online (Open Food Facts, base de
 // datos abierta y gratuita — sin API key). Se van añadiendo a la
@@ -1681,7 +1701,9 @@ document.getElementById('foodForm').addEventListener('submit', (e) => {
   const selectedValue = foodSelect.value;
   const food = selectedValue.startsWith('search-')
     ? searchResultsDB[parseInt(selectedValue.slice(7), 10)]
-    : FOOD_DB[parseInt(selectedValue, 10)];
+    : selectedValue.startsWith('my-')
+      ? state.myFoods[parseInt(selectedValue.slice(3), 10)]
+      : FOOD_DB[parseInt(selectedValue, 10)];
   const grams = parseFloat(document.getElementById('foodGramsInput').value) || 100;
   const ratio = grams / 100;
   addFoodEntry({
@@ -1708,6 +1730,18 @@ document.getElementById('customFoodForm').addEventListener('submit', (e) => {
   if (!name) { alert('Ponle un nombre al alimento antes de añadirlo.'); return; }
   if (!kcal) { alert('Faltan las kcal totales — sin eso no se puede añadir. Si no las sabes exactas, pon una estimación (mira el envase o busca "kcal [nombre del alimento]").'); return; }
   addFoodEntry({ id: Date.now(), date: new Date().toISOString(), name, grams, kcal, p, c, f });
+
+  // Se guarda (por 100g) en "mis alimentos" para no tener que volver a
+  // escribirlo la próxima vez que comas esto mismo — si ya existía uno
+  // con el mismo nombre, se actualiza en vez de duplicarlo.
+  const ratio100 = 100 / grams;
+  const normalized = { name, kcal: kcal * ratio100, p: p * ratio100, c: c * ratio100, f: f * ratio100 };
+  const existingIdx = state.myFoods.findIndex(f2 => f2.name.toLowerCase() === name.toLowerCase());
+  if (existingIdx === -1) state.myFoods.push(normalized);
+  else state.myFoods[existingIdx] = normalized;
+  save(STORAGE_KEYS.myFoods, state.myFoods);
+  renderFoodSelectOptions();
+
   e.target.reset();
   document.getElementById('customFoodGrams').value = 100;
   document.getElementById('customFoodForm').classList.add('hidden');
@@ -2242,6 +2276,7 @@ function renderGraficos() {
   renderWorkoutHistoryCharts();
   renderFoodHistoryCharts();
   renderBalanceChart();
+  renderMenuConsumedList();
 }
 
 /* ---------- INICIO ---------- */
