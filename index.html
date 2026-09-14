@@ -239,13 +239,19 @@
       </div>
 
       <div class="card margin-card">
-        <p class="eyebrow">Progreso de entreno · kcal por semana</p>
+        <p class="eyebrow">Progreso de entreno</p>
+        <p class="hint-text">Por días: comparas un día con otro. Por semanas: comparas el total de una semana con otra (lunes a domingo).</p>
+        <div id="workoutViewPills" class="week-pills">
+          <button type="button" class="week-pill menu-week-pill" data-view="dias">Por días</button>
+          <button type="button" class="week-pill menu-week-pill" data-view="semanas">Por semanas</button>
+        </div>
+        <p class="plan-counter" id="workoutViewLabel">kcal</p>
         <canvas id="workoutHistoryChart" height="160"></canvas>
         <p class="empty-msg" id="graficosWorkoutEmpty">Aún no hay entrenos registrados.</p>
       </div>
 
       <div class="card margin-card">
-        <p class="eyebrow">Sesiones de entreno por semana</p>
+        <p class="plan-counter" id="sessionsViewLabel">Sesiones</p>
         <canvas id="sessionsHistoryChart" height="160"></canvas>
       </div>
 
