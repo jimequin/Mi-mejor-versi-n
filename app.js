@@ -21,7 +21,8 @@ const STORAGE_KEYS = {
   autoLoggedKeys: 'cuaderno.autoLoggedKeys',
   menuConsumedLog: 'cuaderno.menuConsumedLog',
   myFoods: 'cuaderno.myFoods',
-  graficosStart: 'cuaderno.graficosStart'
+  graficosStart: 'cuaderno.graficosStart',
+  ingredientCache: 'cuaderno.ingredientCache'
 };
 
 function load(key, fallback) {
@@ -52,7 +53,12 @@ let state = {
   // Fecha (AAAA-MM-DD) a partir de la cual se muestran los gráficos, o
   // null para ver todo el historial. No borra nada, solo oculta lo de
   // antes de esa fecha en las gráficas de Gráficos.
-  graficosStart: load(STORAGE_KEYS.graficosStart, null)
+  graficosStart: load(STORAGE_KEYS.graficosStart, null),
+  // Ingredientes de Menús que no estaban en el diccionario y se buscaron
+  // online (Open Food Facts / USDA) — se guardan aquí para no tener que
+  // volver a preguntar cada vez que escribes lo mismo. Clave: el texto
+  // del ingrediente, normalizado (minúsculas, sin acentos).
+  ingredientCache: load(STORAGE_KEYS.ingredientCache, {})
 };
 
 // true si la fecha dada es igual o posterior al filtro "ver desde" de
@@ -1298,12 +1304,92 @@ function normalizeText(str) {
 
 // Si el ingrediente combina varias cosas reconocidas (p.ej. "pimiento y
 // cebolla") se promedian sus valores — es una mezcla, no una suma.
+// Primero mira el diccionario fijo de arriba; si no está, mira lo que
+// ya se haya buscado online antes (state.ingredientCache) para ese
+// mismo texto exacto — así solo se pregunta a internet una vez por
+// cada ingrediente nuevo, no cada vez que lo escribes.
 function matchFoodMacros(texto) {
   const norm = normalizeText(texto);
+  const cached = state.ingredientCache && state.ingredientCache[norm];
+  if (cached) return { kcal: cached.kcal, p: cached.p, c: cached.c, f: cached.f };
   const hits = NUTRITION_DB.filter(item => item.keys.some(k => norm.includes(normalizeText(k))));
   if (!hits.length) return null;
   const avg = (field) => hits.reduce((sum, h) => sum + h[field], 0) / hits.length;
   return { kcal: avg('kcal'), p: avg('p'), c: avg('c'), f: avg('f'), gramsPerUnit: hits[0].gramsPerUnit };
+}
+
+// Diccionario mínimo español → inglés, solo para poder preguntarle a la
+// base de datos de nutrición del gobierno de EEUU (USDA FoodData
+// Central), que solo entiende inglés pero tiene datos muy fiables de
+// alimentos crudos/cocinados de toda la vida (no solo productos de
+// marca, que es donde Open Food Facts flojea).
+const FOOD_ES_EN = {
+  'pechuga de pollo': 'chicken breast', 'pollo': 'chicken breast',
+  'atun': 'tuna canned', 'salmon': 'salmon', 'merluza': 'hake fish',
+  'gambas': 'shrimp', 'langostinos': 'shrimp', 'calamares': 'squid',
+  'mejillones': 'mussels', 'clara de huevo': 'egg white', 'huevo': 'egg',
+  'garbanzos': 'chickpeas cooked', 'lentejas': 'lentils cooked',
+  'judias': 'kidney beans cooked', 'alubias': 'kidney beans cooked',
+  'arroz': 'rice cooked', 'pasta': 'pasta cooked', 'quinoa': 'quinoa cooked',
+  'patatas': 'potato', 'patata': 'potato', 'boniato': 'sweet potato',
+  'batata': 'sweet potato', 'pan': 'bread', 'avena': 'oats',
+  'brocoli': 'broccoli', 'espinacas': 'spinach', 'calabacin': 'zucchini',
+  'zanahoria': 'carrot', 'cebolla': 'onion', 'pimiento': 'bell pepper',
+  'tomate': 'tomato', 'lechuga': 'lettuce', 'pepino': 'cucumber',
+  'berenjena': 'eggplant', 'champinones': 'mushroom', 'aguacate': 'avocado',
+  'platano': 'banana', 'manzana': 'apple', 'naranja': 'orange',
+  'fresas': 'strawberries', 'uvas': 'grapes', 'yogur griego': 'greek yogurt',
+  'yogur': 'yogurt', 'queso fresco': 'fresh cheese', 'queso': 'cheese',
+  'leche': 'milk', 'jamon serrano': 'cured ham', 'jamon': 'ham',
+  'bacon': 'bacon', 'salchichas': 'sausage', 'tofu': 'tofu',
+  'hummus': 'hummus', 'aceitunas': 'olives', 'almendras': 'almonds',
+  'nueces': 'walnuts', 'chocolate negro': 'dark chocolate'
+};
+
+function translateForUsda(texto) {
+  const norm = normalizeText(texto);
+  const hit = Object.keys(FOOD_ES_EN).find(es => norm.includes(normalizeText(es)));
+  return hit ? FOOD_ES_EN[hit] : texto; // si no está en el diccionario, se intenta tal cual
+}
+
+// Busca un ingrediente que no está en el diccionario local: primero en
+// Open Food Facts (gratis, sin clave, bueno para productos de marca) y
+// si no encuentra nada, en USDA FoodData Central (base de datos del
+// gobierno de EEUU, muy fiable para alimentos "de toda la vida"). Usa
+// una clave pública de USDA con pocas búsquedas por hora — si algún
+// día se queda corta, se cambia por una clave personal gratuita sin
+// tocar nada más de la app.
+async function lookupIngredientOnline(texto) {
+  try {
+    const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(texto)}&search_simple=1&action=process&json=1&page_size=1&lc=es`;
+    const offRes = await fetch(offUrl);
+    const offData = await offRes.json();
+    const offItem = (offData.products || []).find(p => p.nutriments && p.nutriments['energy-kcal_100g']);
+    if (offItem) {
+      const n = offItem.nutriments;
+      return { kcal: n['energy-kcal_100g'] || 0, p: n.proteins_100g || 0, c: n.carbohydrates_100g || 0, f: n.fat_100g || 0, source: 'Open Food Facts' };
+    }
+  } catch (err) { console.error('Error buscando en Open Food Facts', err); }
+
+  try {
+    const query = translateForUsda(texto);
+    const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=DEMO_KEY&query=${encodeURIComponent(query)}&pageSize=1&dataType=Foundation,SR%20Legacy`;
+    const usdaRes = await fetch(usdaUrl);
+    const usdaData = await usdaRes.json();
+    const food = (usdaData.foods || [])[0];
+    if (food) {
+      const getNutrient = (numbers) => {
+        const found = (food.foodNutrients || []).find(fn => numbers.includes(String(fn.nutrientNumber)));
+        return found ? found.value : 0;
+      };
+      return {
+        kcal: getNutrient(['208']), p: getNutrient(['203']),
+        c: getNutrient(['205']), f: getNutrient(['204']), source: 'USDA'
+      };
+    }
+  } catch (err) { console.error('Error buscando en USDA', err); }
+
+  return null;
 }
 
 // Convierte "300 g" / "300 ml" / "3 uds" a gramos. Con unidades solo
@@ -1362,7 +1448,7 @@ function renderDayTotals(d, dayIdx) {
   const okCena = sumMealMacros(d.cena, totals, unrecognized);
   const note = (okComida && okCena)
     ? ''
-    : `<span class="menu-totals-note">* no reconozco "${unrecognized.join('", "')}" — revisa cómo está escrito, o dale un formato tipo "150 g" a la cantidad. El resto de ingredientes sí está contado arriba.</span>`;
+    : `<span class="menu-totals-note">* "${unrecognized.join('", "')}" — al salir del campo lo busco en internet (Open Food Facts / USDA) automáticamente. Si sigue sin aparecer, revisa cómo está escrito o dale un formato tipo "150 g" a la cantidad. El resto de ingredientes sí está contado arriba.</span>`;
   const isCurrent = activeMenuWeek === 'current';
   const dateKey = dateKeyForDayIndex(dayIdx);
   const already = state.menuConsumedLog && state.menuConsumedLog[dateKey];
@@ -1449,6 +1535,23 @@ function renderMenuPlan() {
       getMenuPlanState()[day][meal][item][field] = input.value;
       mirrorLinkedDay(activeMenuWeek, day, meal);
       saveMenuPlanState();
+      updateDayTotalsOnly(day);
+      reflectMirroredDayInputs(activeMenuWeek, day, meal);
+    });
+  });
+  // Al salir del campo (no en cada pulsación, para no machacar a las
+  // APIs), si el texto no está reconocido ni en el diccionario ni en lo
+  // ya buscado antes, se pregunta online (Open Food Facts / USDA) y se
+  // guarda la respuesta para no tener que volver a preguntar.
+  document.querySelectorAll('.menu-text-input').forEach(input => {
+    input.addEventListener('change', async () => {
+      const texto = input.value.trim();
+      if (!texto || matchFoodMacros(texto)) return;
+      const { day, meal } = input.dataset;
+      const found = await lookupIngredientOnline(texto);
+      if (!found) return;
+      state.ingredientCache[normalizeText(texto)] = found;
+      save(STORAGE_KEYS.ingredientCache, state.ingredientCache);
       updateDayTotalsOnly(day);
       reflectMirroredDayInputs(activeMenuWeek, day, meal);
     });
