@@ -283,6 +283,12 @@
 
       <div class="card margin-card">
         <p class="eyebrow">Diario de comidas de hoy</p>
+        <p class="hint-text">🔍 Busca casi cualquier alimento (base de datos abierta, gratis) o elige uno de la lista fija de abajo.</p>
+        <div class="row-form">
+          <input type="text" id="foodSearchInput" placeholder="Buscar alimento (ej. 'yogur griego')">
+          <button type="button" id="foodSearchBtn" class="btn btn-ghost">Buscar</button>
+        </div>
+        <div id="foodSearchResults" class="food-search-results"></div>
         <form id="foodForm" class="stack-form">
           <select id="foodSelect"></select>
           <div class="row-form">
