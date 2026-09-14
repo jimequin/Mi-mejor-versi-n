@@ -423,7 +423,7 @@ async function addFolderReviewItem(type, key, file) {
 
   if (type === 'peso') {
     fieldsEl.innerHTML = `
-      <input type="number" step="0.1" data-field="kg" placeholder="Peso (kg)" value="${ocrData.kg ?? ''}">
+      <input type="number" step="0.1" data-field="kg" placeholder="Peso (kg) — opcional, ya lo pones a mano arriba" value="${ocrData.kg ?? ''}">
       <input type="number" step="0.1" data-field="fat" placeholder="Grasa %" value="${ocrData.fat ?? ''}">
       <input type="number" step="0.1" data-field="muscle" placeholder="Músculo (kg o %)" value="${ocrData.muscle ?? ''}">
       <input type="number" step="0.1" data-field="water" placeholder="Agua %" value="${ocrData.water ?? ''}">
@@ -437,15 +437,22 @@ async function addFolderReviewItem(type, key, file) {
         const v = fieldsEl.querySelector(`[data-field="${f}"]`).value;
         return v !== '' ? parseFloat(v) : null;
       };
-      const kg = get('kg');
-      if (!kg) { alert('Pon al menos el peso antes de guardar.'); return; }
-      state.weights.push({
+      // El peso ya no es obligatorio aquí — lo normal es escribirlo a
+      // mano en "Peso de hoy" y usar esta foto solo para la composición
+      // corporal. Solo pedimos que haya como mínimo algún dato.
+      const entry = {
         id: Date.now(),
         date: new Date(file.lastModified || Date.now()).toISOString(),
-        kg, fat: get('fat'), muscle: get('muscle'), water: get('water'),
+        kg: get('kg'), fat: get('fat'), muscle: get('muscle'), water: get('water'),
         visceral: get('visceral'), bone: get('bone'),
         protein: get('protein'), metabolism: get('metabolism'), photo: dataUrl
-      });
+      };
+      const camposDatos = ['kg', 'fat', 'muscle', 'water', 'visceral', 'bone', 'protein', 'metabolism'];
+      if (!camposDatos.some(f => entry[f] != null)) {
+        alert('Rellena al menos un dato antes de guardar.');
+        return;
+      }
+      state.weights.push(entry);
       state.weights.sort((a, b) => new Date(a.date) - new Date(b.date));
       save(STORAGE_KEYS.weights, state.weights);
       renderWeights();
@@ -583,7 +590,7 @@ document.getElementById('saveHeightBtn').addEventListener('click', () => {
 });
 function getImc(kg) {
   const h = load('cuaderno.height', null);
-  if (!h) return null;
+  if (!h || !kg) return null;
   const m = h / 100;
   return (kg / (m * m)).toFixed(1);
 }
@@ -593,6 +600,20 @@ function deleteWeight(id) {
   save(STORAGE_KEYS.weights, state.weights);
   renderWeights();
 }
+
+// Peso de hoy, a mano — separado de la foto de la báscula, que ahora
+// solo se usa para leer la composición corporal (grasa, músculo, agua,
+// visceral, ósea, metabolismo, proteína).
+document.getElementById('quickWeightBtn').addEventListener('click', () => {
+  const input = document.getElementById('quickWeightInput');
+  const kg = parseFloat(input.value);
+  if (!kg) { alert('Escribe un peso válido antes de guardar.'); return; }
+  state.weights.push({ id: Date.now(), date: new Date().toISOString(), kg });
+  state.weights.sort((a, b) => new Date(a.date) - new Date(b.date));
+  save(STORAGE_KEYS.weights, state.weights);
+  input.value = '';
+  renderWeights();
+});
 
 function renderWeights() {
   weightEmpty.style.display = state.weights.length ? 'none' : 'block';
@@ -614,7 +635,7 @@ function renderWeights() {
       <div class="weight-entry-top">
         ${w.photo ? `<img class="log-thumb" src="${w.photo}" onclick="openPhotoModal('${w.photo}')">` : ''}
         <span>${new Date(w.date).toLocaleDateString('es-ES')}</span>
-        <span class="val">${w.kg} kg</span>
+        ${w.kg != null ? `<span class="val">${w.kg} kg</span>` : ''}
         <button class="del" onclick="deleteWeight(${w.id})">✕</button>
       </div>
       ${extras ? `<div class="weight-entry-extras">${extras}</div>` : ''}
@@ -906,8 +927,11 @@ const workoutList = document.getElementById('workoutList');
 let workoutChart;
 
 function getLastWeight() {
-  if (!state.weights.length) return 65; // valor por defecto si aún no hay ningún peso registrado
-  return state.weights[state.weights.length - 1].kg;
+  // Coge el peso más reciente que SÍ tenga kg guardado — desde que el
+  // peso (a mano) y la composición corporal (foto) pueden quedar en
+  // registros distintos, el último registro del array no siempre lo trae.
+  const lastWithKg = lastWeightWith('kg');
+  return lastWithKg ? lastWithKg.kg : 65; // valor por defecto si aún no hay ningún peso registrado
 }
 
 // Metabolismo basal (kcal/día) para personalizar el cálculo, en este
