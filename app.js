@@ -435,7 +435,7 @@ async function addFolderReviewItem(type, key, file) {
                 ${b.items.map((item, ii) => `
                   <li>
                     <span>${item}</span>
-                    ${looksWeighted(item) ? `<input type="text" inputmode="decimal" class="exercise-kg-input" data-block="${bi}" data-item="${ii}" placeholder="kg o &quot;no&quot;">` : ''}
+                    ${looksWeighted(item) ? `<input type="text" class="exercise-kg-input" data-block="${bi}" data-item="${ii}" placeholder="kg o &quot;no&quot;">` : ''}
                   </li>
                 `).join('')}
               </ul>
