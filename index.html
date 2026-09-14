@@ -39,9 +39,18 @@
 
     <!-- NUTRICIÓN -->
     <section class="tab" id="tab-nutricion">
+      <div class="card margin-card">
+        <p class="eyebrow">⚖️ Peso de hoy</p>
+        <p class="hint-text">El peso lo escribes tú a mano aquí. La foto de la báscula (justo abajo) se usa solo para leer el resto: grasa corporal, músculo, agua, grasa visceral, masa ósea, metabolismo basal y proteína.</p>
+        <div class="row-form">
+          <input type="number" step="0.1" id="quickWeightInput" placeholder="kg" inputmode="decimal">
+          <button type="button" id="quickWeightBtn" class="btn btn-lime">Guardar peso</button>
+        </div>
+      </div>
+
       <div class="card margin-card" id="weightFolderCard">
         <p class="eyebrow">📁 Carpeta de fotos · Báscula</p>
-        <p class="hint-text">Conecta la carpeta del móvil donde guardas las fotos de la báscula (solo Android + Chrome). La app busca fotos nuevas e intenta leer el peso y la composición corporal — revisa siempre el número antes de guardar, la lectura automática puede fallar.</p>
+        <p class="hint-text">Conecta la carpeta del móvil donde guardas las fotos de la báscula (solo Android + Chrome). La app busca fotos nuevas e intenta leer la composición corporal (grasa, músculo, agua, visceral, ósea, metabolismo, proteína) — revisa siempre los números antes de guardar, la lectura automática puede fallar.</p>
         <div class="row-form">
           <button type="button" id="connectWeightFolderBtn" class="btn btn-ghost">📂 Conectar carpeta</button>
           <button type="button" id="scanWeightFolderBtn" class="btn btn-ghost hidden">🔄 Buscar fotos nuevas</button>
