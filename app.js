@@ -1285,7 +1285,8 @@ const NUTRITION_DB = [
   { keys: ['brocoli', 'brócoli'], kcal: 34, p: 2.8, c: 7, f: 0.4 },
   { keys: ['platano', 'plátano'], kcal: 89, p: 1.1, c: 23, f: 0.3, gramsPerUnit: 120 },
   { keys: ['boniato', 'batata'], kcal: 90, p: 2, c: 20.5, f: 0.1 },
-  { keys: ['clara'], kcal: 52, p: 11, c: 0.7, f: 0.2 }
+  { keys: ['clara'], kcal: 52, p: 11, c: 0.7, f: 0.2 },
+  { keys: ['pasta de te', 'pasta de té', 'galleta'], kcal: 470, p: 6, c: 65, f: 20 }
 ];
 
 function normalizeText(str) {
@@ -1774,7 +1775,8 @@ const PRECIO_DB = [
   { keys: ['espinaca'], label: 'Espinacas', eur100g: 0.3, store: 'Mercadona' },
   { keys: ['brocoli', 'brócoli'], label: 'Brócoli', eur100g: 0.3, store: 'Mercadona' },
   { keys: ['platano', 'plátano'], label: 'Plátano', eur100g: 0.18, store: 'Mercadona' },
-  { keys: ['boniato', 'batata'], label: 'Boniato', eur100g: 0.2, store: 'Mercadona' }
+  { keys: ['boniato', 'batata'], label: 'Boniato', eur100g: 0.2, store: 'Mercadona' },
+  { keys: ['pasta de te', 'pasta de té', 'galleta'], label: 'Galletas/pasta de té', eur100g: 0.35, store: 'Mercadona' }
 ];
 
 function matchAllPrices(texto) {
