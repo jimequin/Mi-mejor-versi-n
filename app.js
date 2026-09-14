@@ -313,11 +313,23 @@ function parseWorkoutBlocks(text) {
       const title = (blocks.length === 0 && !HEADER_HINTS.test(line)) ? 'Calentamiento' : line;
       current = { title, items: [] };
       blocks.push(current);
-    } else if (current) {
+    } else if (current && !isNoiseLine(line)) {
       current.items.push(line);
     }
   });
   return blocks;
+}
+
+// Líneas que no son un ejercicio, sino un dato suelto de la tabla (el
+// RPE, el contador de semana/sesión...) o basura de una letra que se ha
+// colado en la lectura — no tiene sentido enseñarlas como si fueran un
+// ejercicio más, así que se descartan directamente.
+function isNoiseLine(line) {
+  const alnum = line.replace(/[^a-zA-Z0-9á-úñÁ-ÚÑ]/g, '');
+  if (alnum.length < 2) return true; // un punto, un guion suelto...
+  if (/^rpe\b/i.test(line)) return true; // "RPE=8", "RPE 8"
+  if (/semana/i.test(line)) return true; // "32 semana/5 semana"
+  return false;
 }
 
 // Solo los ejercicios que suenan a que llevan peso externo (barra,
