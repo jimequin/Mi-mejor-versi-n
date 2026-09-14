@@ -896,38 +896,14 @@ function renderMobility() {
   renderCheckList(document.getElementById('mobilityHipList'), MOBILITY_HIP, listKey, 'hip');
 }
 
-/* ---------- ENTRENOS (registro libre) ---------- */
-const workoutForm = document.getElementById('workoutForm');
+/* ---------- ENTRENOS ----------
+   El registro de entrenos se hace solo a través de la foto (conecta
+   la carpeta arriba, o adjunta la captura desde ahí) — ya no hay un
+   formulario manual aparte, para no duplicar el mismo registro por
+   dos sitios distintos.
+------------------------------------------------------------------- */
 const workoutList = document.getElementById('workoutList');
-const workoutPhotoInput = document.getElementById('workoutPhotoInput');
-const workoutPhotoName = document.getElementById('workoutPhotoName');
-const exerciseRows = document.getElementById('exerciseRows');
-const caloriesInput = document.getElementById('caloriesInput');
-const calorieHint = document.getElementById('calorieHint');
 let workoutChart;
-let pendingWorkoutPhoto = null;
-let exerciseRowCount = 0;
-
-workoutPhotoInput.addEventListener('change', async () => {
-  const file = workoutPhotoInput.files[0];
-  if (!file) return;
-  pendingWorkoutPhoto = await compressImage(file, 640, 0.7);
-  workoutPhotoName.textContent = '✓ ' + file.name;
-});
-
-function addExerciseRow() {
-  exerciseRowCount++;
-  const row = document.createElement('div');
-  row.className = 'exercise-row';
-  row.dataset.id = exerciseRowCount;
-  row.innerHTML = `
-    <input type="text" placeholder="Ejercicio (ej. Back squat)">
-    <input type="number" step="0.5" placeholder="Kg" inputmode="decimal">
-    <button type="button" class="del" onclick="this.closest('.exercise-row').remove()">✕</button>
-  `;
-  exerciseRows.appendChild(row);
-}
-document.getElementById('addExerciseBtn').addEventListener('click', addExerciseRow);
 
 function getLastWeight() {
   if (!state.weights.length) return 65; // valor por defecto si aún no hay ningún peso registrado
@@ -960,54 +936,6 @@ function computeCalories(met, minutes, kg) {
   if (bmr) return Math.round((bmr / 24) * hours + (met - 1) * kg * hours);
   return Math.round(met * kg * hours);
 }
-
-function estimateCalories() {
-  const select = document.getElementById('sportInput');
-  const met = parseFloat(select.selectedOptions[0]?.dataset.met) || 6;
-  const minutes = parseInt(document.getElementById('minutesInput').value, 10);
-  if (!minutes) {
-    calorieHint.textContent = 'Pon los minutos para poder calcular.';
-    return null;
-  }
-  const kg = getLastWeight();
-  const kcal = computeCalories(met, minutes, kg);
-  const bmr = estimateBMR(kg);
-  calorieHint.textContent = bmr
-    ? `Estimado con tu peso (${kg} kg) y tu metabolismo basal (${Math.round(bmr)} kcal/día).`
-    : `Estimado solo con tu peso (${kg} kg). Añade tu altura en Nutrición o una medición con grasa% para un cálculo más preciso.`;
-  return kcal;
-}
-
-document.getElementById('estimateCaloriesBtn').addEventListener('click', () => {
-  const kcal = estimateCalories();
-  if (kcal) caloriesInput.value = kcal;
-});
-
-workoutForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const sport = document.getElementById('sportInput').selectedOptions[0]?.textContent || '';
-  const minutes = parseInt(document.getElementById('minutesInput').value, 10);
-  let calories = parseInt(caloriesInput.value, 10);
-  if (!calories) calories = estimateCalories();
-  if (!sport || !minutes || !calories) return;
-
-  const exercises = [...exerciseRows.querySelectorAll('.exercise-row')].map(row => {
-    const [nameEl, kgEl] = row.querySelectorAll('input');
-    return { name: nameEl.value.trim(), kg: kgEl.value ? parseFloat(kgEl.value) : null };
-  }).filter(ex => ex.name);
-
-  state.workouts.push({
-    id: Date.now(), date: new Date().toISOString(), sport, minutes, calories,
-    exercises, photo: pendingWorkoutPhoto
-  });
-  save(STORAGE_KEYS.workouts, state.workouts);
-  workoutForm.reset();
-  exerciseRows.innerHTML = '';
-  calorieHint.textContent = '';
-  pendingWorkoutPhoto = null;
-  workoutPhotoName.textContent = '';
-  renderWorkouts();
-});
 
 function deleteWorkout(id) {
   state.workouts = state.workouts.filter(w => w.id !== id);
