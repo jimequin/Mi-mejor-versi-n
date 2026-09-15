@@ -500,11 +500,17 @@ async function addFolderReviewItem(type, key, file) {
     // calculan solas con tu peso/metabolismo en cuanto eliges el tipo
     // de entreno, sin tener que pulsar nada ni saber el número.
     const ENTRENO_MINUTES = 60;
+    // Fecha del entreno — por defecto la de la foto (o hoy si no se
+    // sabe), pero editable: si subes hoy el entreno de ayer (o de
+    // cualquier otro día), cámbiala aquí antes de guardar.
+    const defaultDate = localDateKey(new Date(file.lastModified || Date.now()));
     fieldsEl.innerHTML = `
       <select data-field="sport">${sportOptions}</select>
+      <input type="date" data-field="date" value="${defaultDate}">
       <p class="hint-text" data-calories-preview>🔥 — kcal (calculado con tu peso, entreno de 60 min)</p>
     `;
     const sportSelect = fieldsEl.querySelector('[data-field="sport"]');
+    const dateInput = fieldsEl.querySelector('[data-field="date"]');
     const caloriesPreview = fieldsEl.querySelector('[data-calories-preview]');
     function calcCalories() {
       const met = parseFloat(sportSelect.selectedOptions[0]?.dataset.met) || 6;
@@ -533,9 +539,12 @@ async function addFolderReviewItem(type, key, file) {
           return { name: `${b.title}${roundsTxt}: ${item}`, kg: isNaN(kgNum) ? null : kgNum };
         });
       });
+      // La hora exacta da igual (no se usa para nada), así que se pone
+      // el mediodía del día elegido — evita líos si la fecha elegida
+      // cae justo al cambiar de zona horaria.
       state.workouts.push({
         id: Date.now(),
-        date: new Date(file.lastModified || Date.now()).toISOString(),
+        date: new Date(`${dateInput.value}T12:00:00`).toISOString(),
         sport, minutes: ENTRENO_MINUTES, calories, exercises, photo: dataUrl
       });
       save(STORAGE_KEYS.workouts, state.workouts);
