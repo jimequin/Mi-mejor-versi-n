@@ -740,14 +740,18 @@ function renderWeightChart() {
 }
 
 /* ---------- PLAN SEMANAL ---------- */
+// Movilidad de sentadilla + movilidad de cadera (de la tarjeta de abajo)
+// van los mismos días: miércoles, viernes, sábado y domingo. Lunes,
+// martes y jueves son descanso total de eso (glúteo sigue solo
+// viernes/sábado/domingo, como ya estaba).
 const WEEKLY_PLAN = [
   { key: 'lun', label: 'Lunes', types: [] },
-  { key: 'mar', label: 'Martes', types: ['squat'] },
-  { key: 'mie', label: 'Miércoles', types: [] },
-  { key: 'jue', label: 'Jueves', types: ['squat'] },
-  { key: 'vie', label: 'Viernes', types: ['gluteo'] },
+  { key: 'mar', label: 'Martes', types: [] },
+  { key: 'mie', label: 'Miércoles', types: ['squat'] },
+  { key: 'jue', label: 'Jueves', types: [] },
+  { key: 'vie', label: 'Viernes', types: ['gluteo', 'squat'] },
   { key: 'sab', label: 'Sábado', types: ['gluteo', 'squat'] },
-  { key: 'dom', label: 'Domingo', types: ['gluteo'] }
+  { key: 'dom', label: 'Domingo', types: ['gluteo', 'squat'] }
 ];
 
 // Todos los bloques (glúteo, movilidad de sentadilla, movilidad de
@@ -926,8 +930,8 @@ function renderPlan() {
   const listEl = document.getElementById('planExerciseList');
 
   if (day.types.length === 0) {
-    document.getElementById('planDayLabel').textContent = `${day.label} — 😴 Descanso de fuerza`;
-    listEl.innerHTML = '<p class="plan-rest-msg">Sin ejercicios de glúteo ni movilidad de sentadilla. No olvides la movilidad de cadera de abajo.</p>';
+    document.getElementById('planDayLabel').textContent = `${day.label} — 😴 Descanso`;
+    listEl.innerHTML = '<p class="plan-rest-msg">Sin glúteo ni movilidad (ni de sentadilla ni de cadera) — hoy toca descanso de todo eso.</p>';
     return;
   }
 
@@ -956,10 +960,21 @@ function selectPlanDay(idx) {
 }
 
 function renderMobility() {
+  const counterEl = document.getElementById('mobilityHipCounter');
+  const listEl = document.getElementById('mobilityHipList');
+  // Mismos días que la movilidad de sentadilla — miércoles, viernes,
+  // sábado y domingo. Lunes, martes y jueves, descanso total.
+  const todayIdx = (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
+  const isRestDay = WEEKLY_PLAN[todayIdx].types.length === 0;
+  if (isRestDay) {
+    counterEl.textContent = '😴 Hoy toca descanso — no hay movilidad de cadera.';
+    listEl.innerHTML = '';
+    return;
+  }
   const listKey = 'mobility-hip-' + todayKey();
-  document.getElementById('mobilityHipCounter').textContent =
+  counterEl.textContent =
     `Series de hoy: ${planSeries[listKey] || 0}/${SERIES_TARGET.hip} ${(planSeries[listKey] || 0) >= SERIES_TARGET.hip ? '🎉' : ''} · Hecho ${planCompletions.hip || 0} veces en total`;
-  renderCheckList(document.getElementById('mobilityHipList'), MOBILITY_HIP, listKey, 'hip');
+  renderCheckList(listEl, MOBILITY_HIP, listKey, 'hip');
 }
 
 /* ---------- ENTRENOS ----------
@@ -1067,7 +1082,10 @@ function renderWorkouts() {
   const today = todayKey();
   const todayWorkouts = state.workouts.filter(w => localDateKey(new Date(w.date)) === today);
   document.getElementById('weekCalories').textContent = todayWorkouts.reduce((sum, w) => sum + w.calories, 0);
-  document.getElementById('weekSessions').textContent = todayWorkouts.length;
+  // Las kcal sí suman los pasos (para el balance calórico), pero como
+  // "sesión" solo cuentan los entrenos de verdad — caminar no es una
+  // sesión de entreno.
+  document.getElementById('weekSessions').textContent = todayWorkouts.filter(w => w.sport !== 'Caminar (pasos)').length;
 
   // El gráfico de debajo sí sigue siendo la semana completa, día a día,
   // para ver cómo se reparte — eso no cambia.
