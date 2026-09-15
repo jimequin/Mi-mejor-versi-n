@@ -1053,12 +1053,17 @@ function renderWorkouts() {
   `;
   }).join('');
 
+  // La tarjeta de arriba es de HOY solo — antes sumaba toda la semana
+  // (lunes a domingo) junta, que es justo lo que no querías ver aquí.
+  const today = todayKey();
+  const todayWorkouts = state.workouts.filter(w => localDateKey(new Date(w.date)) === today);
+  document.getElementById('weekCalories').textContent = todayWorkouts.reduce((sum, w) => sum + w.calories, 0);
+  document.getElementById('weekSessions').textContent = todayWorkouts.length;
+
+  // El gráfico de debajo sí sigue siendo la semana completa, día a día,
+  // para ver cómo se reparte — eso no cambia.
   const weekStart = startOfWeek(new Date());
   const thisWeek = state.workouts.filter(w => new Date(w.date) >= weekStart);
-  document.getElementById('weekCalories').textContent = thisWeek.reduce((sum, w) => sum + w.calories, 0);
-  document.getElementById('weekSessions').textContent = thisWeek.length;
-
-  // Gráfico: kcal por día de la semana actual (lun-dom)
   const dayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   const dayTotals = [0, 0, 0, 0, 0, 0, 0];
   thisWeek.forEach(w => {
