@@ -1286,7 +1286,9 @@ const THIS_WEEK_MENU = [
   {
     day: 'Viernes',
     comida: [
-      { texto: 'Lasaña casera 🍝 (único día con pasta de trigo)', cantidad: '350 g' }
+      { texto: 'Pechuga de pollo a la plancha', cantidad: '150 g' },
+      { texto: 'Garbanzos cocidos', cantidad: '150 g' },
+      { texto: 'Ensalada verde con tomate', cantidad: '150 g' }
     ],
     cena: [
       { texto: 'Salchichas a la plancha', cantidad: '200 g' },
@@ -1300,14 +1302,16 @@ const THIS_WEEK_MENU = [
       { texto: 'Huevo a la plancha', cantidad: '2 uds' }
     ],
     cena: [
-      { texto: 'Crema de calabacín', cantidad: '300 ml' },
+      { texto: 'Puré de calabaza, zanahoria y cebolla', cantidad: '300 ml' },
       { texto: 'Huevo duro', cantidad: '2 uds' }
     ]
   },
   {
     day: 'Domingo',
     comida: [
-      { texto: 'Hamburguesa casera 🍔 (hoy)', cantidad: '2 uds' }
+      { texto: 'Merluza al horno', cantidad: '200 g' },
+      { texto: 'Boniato asado', cantidad: '200 g' },
+      { texto: 'Ensalada verde', cantidad: '100 g' }
     ],
     cena: [
       { texto: 'Huevo (para gulas) 🍳 (hoy)', cantidad: '3 uds' },
@@ -1381,7 +1385,9 @@ const NUTRITION_DB = [
   { keys: ['platano', 'plátano'], kcal: 89, p: 1.1, c: 23, f: 0.3, gramsPerUnit: 120 },
   { keys: ['boniato', 'batata'], kcal: 90, p: 2, c: 20.5, f: 0.1 },
   { keys: ['clara'], kcal: 52, p: 11, c: 0.7, f: 0.2 },
-  { keys: ['pasta de te', 'pasta de té', 'galleta'], kcal: 470, p: 6, c: 65, f: 20 }
+  { keys: ['pasta de te', 'pasta de té', 'galleta'], kcal: 470, p: 6, c: 65, f: 20 },
+  { keys: ['calabaza'], kcal: 26, p: 1, c: 6.5, f: 0.1 },
+  { keys: ['zanahoria'], kcal: 41, p: 0.9, c: 9.6, f: 0.2 }
 ];
 
 function normalizeText(str) {
@@ -2049,7 +2055,9 @@ const PRECIO_DB = [
   { keys: ['brocoli', 'brócoli'], label: 'Brócoli', eur100g: 0.3, store: 'Mercadona' },
   { keys: ['platano', 'plátano'], label: 'Plátano', eur100g: 0.18, store: 'Mercadona' },
   { keys: ['boniato', 'batata'], label: 'Boniato', eur100g: 0.2, store: 'Mercadona' },
-  { keys: ['pasta de te', 'pasta de té', 'galleta'], label: 'Galletas/pasta de té', eur100g: 0.35, store: 'Mercadona' }
+  { keys: ['pasta de te', 'pasta de té', 'galleta'], label: 'Galletas/pasta de té', eur100g: 0.35, store: 'Mercadona' },
+  { keys: ['calabaza'], label: 'Calabaza', eur100g: 0.15, store: 'Mercadona' },
+  { keys: ['zanahoria'], label: 'Zanahoria', eur100g: 0.12, store: 'Mercadona' }
 ];
 
 function matchAllPrices(texto) {
