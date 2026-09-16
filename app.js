@@ -1309,8 +1309,8 @@ const THIS_WEEK_MENU = [
   {
     day: 'Domingo',
     comida: [
-      { texto: 'Merluza al horno', cantidad: '200 g' },
-      { texto: 'Boniato asado', cantidad: '200 g' },
+      { texto: 'Filete de ternera a la plancha', cantidad: '200 g' },
+      { texto: 'Boniato asado', cantidad: '150 g' },
       { texto: 'Ensalada verde', cantidad: '100 g' }
     ],
     cena: [
@@ -1392,7 +1392,8 @@ const NUTRITION_DB = [
   // Versiones más ligeras — usa estas palabras (sin "carne picada" a
   // secas) para que no se promedie con la de arriba, que es más grasa.
   { keys: ['ternera magra'], kcal: 137, p: 21, c: 0, f: 5 },
-  { keys: ['pavo picado', 'pavo magro'], kcal: 120, p: 20, c: 0, f: 3 }
+  { keys: ['pavo picado', 'pavo magro'], kcal: 120, p: 20, c: 0, f: 3 },
+  { keys: ['filete de ternera', 'bistec de ternera', 'solomillo'], kcal: 172, p: 27, c: 0, f: 7 }
 ];
 
 function normalizeText(str) {
@@ -2065,7 +2066,8 @@ const PRECIO_DB = [
   { keys: ['zanahoria'], label: 'Zanahoria', eur100g: 0.12, store: 'Mercadona' },
   { keys: ['carne picada', 'ternera picada', 'vacuno picado'], label: 'Carne picada de vacuno', eur100g: 0.7, store: 'Mercadona' },
   { keys: ['ternera magra'], label: 'Ternera magra picada (5% M.G.)', eur100g: 0.85, store: 'Mercadona' },
-  { keys: ['pavo picado', 'pavo magro'], label: 'Pavo picado', eur100g: 0.75, store: 'Mercadona' }
+  { keys: ['pavo picado', 'pavo magro'], label: 'Pavo picado', eur100g: 0.75, store: 'Mercadona' },
+  { keys: ['filete de ternera', 'bistec de ternera', 'solomillo'], label: 'Filete de ternera', eur100g: 1.6, store: 'Mercadona' }
 ];
 
 function matchAllPrices(texto) {
