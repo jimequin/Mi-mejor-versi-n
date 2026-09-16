@@ -1433,7 +1433,26 @@ const NUTRITION_DB = [
   { keys: ['miel'], kcal: 304, p: 0.3, c: 82, f: 0 },
   { keys: ['mermelada'], kcal: 250, p: 0.3, c: 62, f: 0.1 },
   { keys: ['cafe con leche', 'café con leche'], kcal: 30, p: 1.5, c: 2.5, f: 1.5 },
-  { keys: ['almendras'], kcal: 579, p: 21, c: 22, f: 50 }
+  { keys: ['almendras'], kcal: 579, p: 21, c: 22, f: 50 },
+  { keys: ['tofu'], kcal: 76, p: 8, c: 1.9, f: 4.8 },
+  { keys: ['hummus'], kcal: 166, p: 8, c: 14, f: 9.6 },
+  { keys: ['aceitunas'], kcal: 145, p: 1, c: 4, f: 15 },
+  // Bebidas — por 100 ml. Pon la cantidad como "330 ml" (una lata) o
+  // "250 ml" (una caña), por ejemplo.
+  { keys: ['cerveza'], kcal: 43, p: 0.5, c: 3.6, f: 0 },
+  { keys: ['vino tinto', 'vino blanco', 'vino rosado'], kcal: 85, p: 0.1, c: 2.6, f: 0 },
+  { keys: ['vermu', 'vermú'], kcal: 130, p: 0, c: 12, f: 0 },
+  { keys: ['ginebra', 'vodka', 'ron', 'whisky', 'licor'], kcal: 250, p: 0, c: 0, f: 0 },
+  // Ojo con las "zero/light": van con sus propias palabras clave para
+  // no mezclarse con la de azúcar normal (si escribes "coca cola zero"
+  // solo debe contar como zero, no promediado con la normal).
+  { keys: ['refresco de cola'], kcal: 42, p: 0, c: 10.6, f: 0 },
+  { keys: ['refresco light', 'refresco zero', 'cola zero', 'cola light', 'coca cola zero', 'coca cola light'], kcal: 1, p: 0, c: 0.2, f: 0 },
+  { keys: ['tonica', 'tónica'], kcal: 34, p: 0, c: 8.5, f: 0 },
+  { keys: ['zumo de naranja', 'zumo natural'], kcal: 45, p: 0.7, c: 10, f: 0.2 },
+  { keys: ['batido'], kcal: 60, p: 3, c: 9, f: 1.5 },
+  { keys: ['cafe solo', 'café solo'], kcal: 2, p: 0.3, c: 0, f: 0 },
+  { keys: ['te sin azucar', 'té sin azúcar', 'infusion', 'infusión'], kcal: 1, p: 0, c: 0.3, f: 0 }
 ];
 
 function normalizeText(str) {
