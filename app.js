@@ -1387,7 +1387,8 @@ const NUTRITION_DB = [
   { keys: ['clara'], kcal: 52, p: 11, c: 0.7, f: 0.2 },
   { keys: ['pasta de te', 'pasta de té', 'galleta'], kcal: 470, p: 6, c: 65, f: 20 },
   { keys: ['calabaza'], kcal: 26, p: 1, c: 6.5, f: 0.1 },
-  { keys: ['zanahoria'], kcal: 41, p: 0.9, c: 9.6, f: 0.2 }
+  { keys: ['zanahoria'], kcal: 41, p: 0.9, c: 9.6, f: 0.2 },
+  { keys: ['carne picada', 'ternera picada', 'vacuno picado'], kcal: 250, p: 18, c: 0, f: 20 }
 ];
 
 function normalizeText(str) {
@@ -2057,7 +2058,8 @@ const PRECIO_DB = [
   { keys: ['boniato', 'batata'], label: 'Boniato', eur100g: 0.2, store: 'Mercadona' },
   { keys: ['pasta de te', 'pasta de té', 'galleta'], label: 'Galletas/pasta de té', eur100g: 0.35, store: 'Mercadona' },
   { keys: ['calabaza'], label: 'Calabaza', eur100g: 0.15, store: 'Mercadona' },
-  { keys: ['zanahoria'], label: 'Zanahoria', eur100g: 0.12, store: 'Mercadona' }
+  { keys: ['zanahoria'], label: 'Zanahoria', eur100g: 0.12, store: 'Mercadona' },
+  { keys: ['carne picada', 'ternera picada', 'vacuno picado'], label: 'Carne picada de vacuno', eur100g: 0.7, store: 'Mercadona' }
 ];
 
 function matchAllPrices(texto) {
