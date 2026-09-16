@@ -1388,7 +1388,11 @@ const NUTRITION_DB = [
   { keys: ['pasta de te', 'pasta de té', 'galleta'], kcal: 470, p: 6, c: 65, f: 20 },
   { keys: ['calabaza'], kcal: 26, p: 1, c: 6.5, f: 0.1 },
   { keys: ['zanahoria'], kcal: 41, p: 0.9, c: 9.6, f: 0.2 },
-  { keys: ['carne picada', 'ternera picada', 'vacuno picado'], kcal: 250, p: 18, c: 0, f: 20 }
+  { keys: ['carne picada', 'ternera picada', 'vacuno picado'], kcal: 250, p: 18, c: 0, f: 20 },
+  // Versiones más ligeras — usa estas palabras (sin "carne picada" a
+  // secas) para que no se promedie con la de arriba, que es más grasa.
+  { keys: ['ternera magra'], kcal: 137, p: 21, c: 0, f: 5 },
+  { keys: ['pavo picado', 'pavo magro'], kcal: 120, p: 20, c: 0, f: 3 }
 ];
 
 function normalizeText(str) {
@@ -2059,7 +2063,9 @@ const PRECIO_DB = [
   { keys: ['pasta de te', 'pasta de té', 'galleta'], label: 'Galletas/pasta de té', eur100g: 0.35, store: 'Mercadona' },
   { keys: ['calabaza'], label: 'Calabaza', eur100g: 0.15, store: 'Mercadona' },
   { keys: ['zanahoria'], label: 'Zanahoria', eur100g: 0.12, store: 'Mercadona' },
-  { keys: ['carne picada', 'ternera picada', 'vacuno picado'], label: 'Carne picada de vacuno', eur100g: 0.7, store: 'Mercadona' }
+  { keys: ['carne picada', 'ternera picada', 'vacuno picado'], label: 'Carne picada de vacuno', eur100g: 0.7, store: 'Mercadona' },
+  { keys: ['ternera magra'], label: 'Ternera magra picada (5% M.G.)', eur100g: 0.85, store: 'Mercadona' },
+  { keys: ['pavo picado', 'pavo magro'], label: 'Pavo picado', eur100g: 0.75, store: 'Mercadona' }
 ];
 
 function matchAllPrices(texto) {
