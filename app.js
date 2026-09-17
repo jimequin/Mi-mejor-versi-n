@@ -957,20 +957,39 @@ function renderPlan() {
 function selectPlanDay(idx) {
   selectedPlanDay = idx;
   renderPlan();
+  renderMobility();
 }
 
+// Sigue el mismo selector de día (L M X J V S D) que "Plan semanal", en
+// vez de mirar siempre el día real — así al tocar un día para verlo, la
+// tarjeta de movilidad de cadera enseña lo mismo que ese día, y no
+// parece que "siempre pone descanso" cuando en realidad solo estás
+// mirando otro día. Solo se puede MARCAR (el check interactivo) si el
+// día que estás mirando es hoy de verdad — no tiene sentido completar
+// la rutina de un día que aún no ha llegado, o que ya pasó.
 function renderMobility() {
   const counterEl = document.getElementById('mobilityHipCounter');
   const listEl = document.getElementById('mobilityHipList');
-  // Mismos días que la movilidad de sentadilla — miércoles, viernes,
-  // sábado y domingo. Lunes, martes y jueves, descanso total.
-  const todayIdx = (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
-  const isRestDay = WEEKLY_PLAN[todayIdx].types.length === 0;
+  const realTodayIdx = (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
+  const day = WEEKLY_PLAN[selectedPlanDay];
+  const isToday = selectedPlanDay === realTodayIdx;
+  const isRestDay = day.types.length === 0;
+
   if (isRestDay) {
-    counterEl.textContent = '😴 Hoy toca descanso — no hay movilidad de cadera.';
+    counterEl.textContent = isToday
+      ? '😴 Hoy toca descanso — no hay movilidad de cadera.'
+      : `😴 ${day.label} es descanso — no hay movilidad de cadera ese día.`;
     listEl.innerHTML = '';
     return;
   }
+
+  if (!isToday) {
+    // Solo a modo de vistazo — no se puede marcar un día que no es hoy.
+    counterEl.textContent = `${day.label} sí toca movilidad de cadera (marca los ejercicios el día que sea de verdad ${day.label.toLowerCase()}):`;
+    listEl.innerHTML = MOBILITY_HIP.map(text => `<li><span class="plan-text">${text}</span></li>`).join('');
+    return;
+  }
+
   const listKey = 'mobility-hip-' + todayKey();
   counterEl.textContent =
     `Series de hoy: ${planSeries[listKey] || 0}/${SERIES_TARGET.hip} ${(planSeries[listKey] || 0) >= SERIES_TARGET.hip ? '🎉' : ''} · Hecho ${planCompletions.hip || 0} veces en total`;
