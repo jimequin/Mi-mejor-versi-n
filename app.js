@@ -1171,9 +1171,10 @@ const DEFAULT_MENU_TEMPLATE = [
   {
     day: 'Lunes',
     comida: [
-      { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
-      { texto: 'Garbanzos', cantidad: '120 g' },
-      { texto: 'Ensalada verde', cantidad: '100 g' },
+      { texto: 'Ternera magra', cantidad: '150 g' },
+      { texto: 'Brócoli al vapor', cantidad: '120 g' },
+      { texto: 'Zanahoria', cantidad: '80 g' },
+      { texto: 'Cebolla', cantidad: '50 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
     cena: [
@@ -1210,9 +1211,10 @@ const DEFAULT_MENU_TEMPLATE = [
   {
     day: 'Jueves',
     comida: [
-      { texto: 'Pechuga de pollo a la plancha', cantidad: '200 g' },
-      { texto: 'Garbanzos', cantidad: '120 g' },
-      { texto: 'Ensalada verde', cantidad: '100 g' },
+      { texto: 'Ternera magra', cantidad: '150 g' },
+      { texto: 'Brócoli al vapor', cantidad: '120 g' },
+      { texto: 'Zanahoria', cantidad: '80 g' },
+      { texto: 'Cebolla', cantidad: '50 g' },
       { texto: 'Plátano (pre-entreno)', cantidad: '1 ud' }
     ],
     cena: [
