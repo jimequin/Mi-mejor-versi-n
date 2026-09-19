@@ -1052,21 +1052,27 @@ function deleteWorkout(id) {
 // a un ritmo medio (~100 pasos/min) y las kcal con la misma fórmula que
 // el resto de entrenos (MET de caminar = 3.5), y se guarda como un
 // entreno más para que cuente en Gráficos igual que cualquier otro.
+const stepsDateInput = document.getElementById('stepsDateInput');
+stepsDateInput.value = todayKey();
 document.getElementById('stepsBtn').addEventListener('click', () => {
   const input = document.getElementById('stepsInput');
   const steps = parseInt(input.value, 10);
   if (!steps) { alert('Escribe cuántos pasos antes de guardar.'); return; }
   const minutes = Math.round(steps / 100);
   const calories = computeCalories(3.5, minutes, getLastWeight());
+  // La fecha es la que hayas puesto (por defecto hoy) — si los apuntas
+  // pasada la medianoche y en realidad son de ayer, cámbiala antes de
+  // guardar. La hora exacta da igual, se pone el mediodía de ese día.
   state.workouts.push({
     id: Date.now(),
-    date: new Date().toISOString(),
+    date: new Date(`${stepsDateInput.value}T12:00:00`).toISOString(),
     sport: 'Caminar (pasos)',
     minutes, calories,
     exercises: [{ name: `${steps} pasos`, kg: null }]
   });
   save(STORAGE_KEYS.workouts, state.workouts);
   input.value = '';
+  stepsDateInput.value = todayKey();
   renderWorkouts();
 });
 
