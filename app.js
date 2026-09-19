@@ -1232,9 +1232,9 @@ const DEFAULT_MENU_TEMPLATE = [
   {
     day: 'Sábado',
     comida: [
-      { texto: 'Hamburguesa casera (sin pan)', cantidad: '200 g' },
-      { texto: 'Boniato asado', cantidad: '100 g' },
-      { texto: 'Ensalada verde', cantidad: '100 g' }
+      { texto: 'Pechuga de pollo a la plancha', cantidad: '120 g' },
+      { texto: 'Ensalada verde con tomate', cantidad: '150 g' },
+      { texto: 'Aguacate', cantidad: '50 g' }
     ],
     cena: [
       { texto: 'Salmón al horno (congelado)', cantidad: '200 g' },
@@ -1244,7 +1244,8 @@ const DEFAULT_MENU_TEMPLATE = [
   {
     day: 'Domingo',
     comida: [
-      { texto: 'Pisto con pollo', cantidad: '300 g' }
+      { texto: 'Costillar al horno', cantidad: '250 g' },
+      { texto: 'Ensalada verde', cantidad: '100 g' }
     ],
     cena: [
       { texto: 'Tortilla de claras con espinacas', cantidad: '3 uds' },
@@ -1477,7 +1478,8 @@ const NUTRITION_DB = [
   { keys: ['zumo de naranja', 'zumo natural'], kcal: 45, p: 0.7, c: 10, f: 0.2 },
   { keys: ['batido'], kcal: 60, p: 3, c: 9, f: 1.5 },
   { keys: ['cafe solo', 'café solo'], kcal: 2, p: 0.3, c: 0, f: 0 },
-  { keys: ['te sin azucar', 'té sin azúcar', 'infusion', 'infusión'], kcal: 1, p: 0, c: 0.3, f: 0 }
+  { keys: ['te sin azucar', 'té sin azúcar', 'infusion', 'infusión'], kcal: 1, p: 0, c: 0.3, f: 0 },
+  { keys: ['costillar', 'costillas de cerdo'], kcal: 277, p: 19, c: 0, f: 22 }
 ];
 
 function normalizeText(str) {
@@ -2186,7 +2188,8 @@ const PRECIO_DB = [
   { keys: ['miel'], label: 'Miel', eur100g: 0.8, store: 'Mercadona' },
   { keys: ['mermelada'], label: 'Mermelada', eur100g: 0.4, store: 'Mercadona' },
   { keys: ['cafe con leche', 'café con leche'], label: 'Café', eur100g: 0.3, store: 'Mercadona' },
-  { keys: ['almendras'], label: 'Almendras', eur100g: 1.3, store: 'Carrefour Express' }
+  { keys: ['almendras'], label: 'Almendras', eur100g: 1.3, store: 'Carrefour Express' },
+  { keys: ['costillar', 'costillas de cerdo'], label: 'Costillar de cerdo', eur100g: 0.6, store: 'Mercadona' }
 ];
 
 function matchAllPrices(texto) {
