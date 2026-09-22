@@ -1227,31 +1227,29 @@ const DEFAULT_MENU_TEMPLATE = [
     comida: [
       { texto: 'Ensalada verde con atún', cantidad: '200 g' }
     ],
+    // Cena de viernes y todo el fin de semana en blanco a propósito —
+    // son días sociales/imprevisibles, así que no tiene sentido tener
+    // algo fijo puesto: cada semana rellenas tú lo que toque de verdad.
     cena: [
-      { texto: 'Cena fuera / con planes — ajusta tú la cantidad', cantidad: '1 ud' }
+      { texto: '', cantidad: '' }
     ]
   },
   {
     day: 'Sábado',
     comida: [
-      { texto: 'Pechuga de pollo a la plancha', cantidad: '120 g' },
-      { texto: 'Ensalada verde con tomate', cantidad: '150 g' },
-      { texto: 'Aguacate', cantidad: '50 g' }
+      { texto: '', cantidad: '' }
     ],
     cena: [
-      { texto: 'Salmón al horno (congelado)', cantidad: '200 g' },
-      { texto: 'Brócoli al vapor', cantidad: '150 g' }
+      { texto: '', cantidad: '' }
     ]
   },
   {
     day: 'Domingo',
     comida: [
-      { texto: 'Costillar al horno', cantidad: '250 g' },
-      { texto: 'Ensalada verde', cantidad: '100 g' }
+      { texto: '', cantidad: '' }
     ],
     cena: [
-      { texto: 'Tortilla de claras con espinacas', cantidad: '3 uds' },
-      { texto: 'Ensalada verde', cantidad: '100 g' }
+      { texto: '', cantidad: '' }
     ]
   }
 ];
@@ -1318,32 +1316,28 @@ const THIS_WEEK_MENU = [
       { texto: 'Garbanzos cocidos', cantidad: '150 g' },
       { texto: 'Ensalada verde con tomate', cantidad: '150 g' }
     ],
+    // Cena de viernes y todo el fin de semana en blanco a propósito —
+    // son días sociales/imprevisibles, rellenas tú lo que toque de verdad.
     cena: [
-      { texto: 'Salchichas a la plancha', cantidad: '200 g' },
-      { texto: 'Pimiento amarillo y cebolla salteados', cantidad: '150 g' }
+      { texto: '', cantidad: '' }
     ]
   },
   {
     day: 'Sábado',
     comida: [
-      { texto: 'Pisto de mamá', cantidad: '300 g' },
-      { texto: 'Huevo a la plancha', cantidad: '2 uds' }
+      { texto: '', cantidad: '' }
     ],
     cena: [
-      { texto: 'Puré de calabaza, zanahoria y cebolla', cantidad: '300 ml' },
-      { texto: 'Huevo duro', cantidad: '2 uds' }
+      { texto: '', cantidad: '' }
     ]
   },
   {
     day: 'Domingo',
     comida: [
-      { texto: 'Filete de ternera a la plancha', cantidad: '200 g' },
-      { texto: 'Boniato asado', cantidad: '150 g' },
-      { texto: 'Ensalada verde', cantidad: '100 g' }
+      { texto: '', cantidad: '' }
     ],
     cena: [
-      { texto: 'Huevo (para gulas) 🍳 (hoy)', cantidad: '3 uds' },
-      { texto: 'Gulas', cantidad: '100 g' }
+      { texto: '', cantidad: '' }
     ]
   }
 ];
