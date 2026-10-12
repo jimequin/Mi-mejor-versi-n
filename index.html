@@ -233,10 +233,11 @@
       <div class="card margin-card">
         <p class="eyebrow">🎯 Tu objetivo</p>
         <p class="hint-text">Hasta el 1 de diciembre. Se compara con tu última medición registrada en Nutrición.</p>
+        <p class="hint-text">Grasa corporal = qué % de tu peso es grasa (se pone en <b>%</b>). Músculo = cuántos kilos de masa muscular tienes (se pone en <b>kg</b>, no en %). Los dos te los da la báscula.</p>
         <form id="goalForm" class="stack-form">
           <div class="row-form">
-            <input type="number" step="0.1" id="goalFatInput" placeholder="Grasa objetivo %">
-            <input type="number" step="0.1" id="goalMuscleInput" placeholder="Músculo objetivo (kg)">
+            <input type="number" step="0.1" id="goalFatInput" placeholder="Grasa objetivo (en %, ej. 24)">
+            <input type="number" step="0.1" id="goalMuscleInput" placeholder="Músculo objetivo (en kg, ej. 35)">
           </div>
           <input type="date" id="goalDateInput">
           <button type="submit" class="btn btn-lime">Guardar objetivo</button>
