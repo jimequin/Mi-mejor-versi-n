@@ -750,6 +750,18 @@ input:focus, select:focus, button:focus{
   text-align: center;
 }
 
+/* MODAL BIENVENIDA */
+.onboarding-card{
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 14px;
+  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
 /* MODAL FOTO */
 .photo-modal{
   position: fixed;

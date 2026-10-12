@@ -22,7 +22,8 @@ const STORAGE_KEYS = {
   menuConsumedLog: 'cuaderno.menuConsumedLog',
   myFoods: 'cuaderno.myFoods',
   graficosStart: 'cuaderno.graficosStart',
-  ingredientCache: 'cuaderno.ingredientCache'
+  ingredientCache: 'cuaderno.ingredientCache',
+  onboarded: 'cuaderno.onboarded'
 };
 
 function load(key, fallback) {
@@ -2193,6 +2194,67 @@ function matchAllPrices(texto) {
   return PRECIO_DB.filter(item => item.keys.some(k => norm.includes(normalizeText(k))));
 }
 
+// Tamaños de paquete/envase "de verdad" tal como se venden en el súper
+// (aproximado, Mercadona) — para poder decirte cuántos paquetes
+// comprar de cada cosa en vez de un gramaje suelto que no existe en la
+// estantería (nadie vende "230 g de pollo", vende bandejas de 500 g).
+// Usa las mismas "keys" que PRECIO_DB para emparejar con el mismo
+// producto. Si un producto no está aquí, la lista sigue enseñando el
+// cálculo por gramos/unidades de antes (sin paquete real).
+const PACKAGE_DB = [
+  { keys: ['pollo'], packageQty: 500, packageUnit: 'g', packagePrice: 4.5 },
+  { keys: ['huevo'], packageQty: 12, packageUnit: 'ud', packagePrice: 3.0 },
+  { keys: ['garbanzo'], packageQty: 400, packageUnit: 'g', packagePrice: 1.0 },
+  { keys: ['lenteja'], packageQty: 400, packageUnit: 'g', packagePrice: 1.0 },
+  { keys: ['atun', 'atún'], packageQty: 156, packageUnit: 'g', packagePrice: 1.95 },
+  { keys: ['salmon', 'salmón'], packageQty: 400, packageUnit: 'g', packagePrice: 7.2 },
+  { keys: ['merluza'], packageQty: 400, packageUnit: 'g', packagePrice: 5.6 },
+  { keys: ['costillar', 'costillas de cerdo'], packageQty: 600, packageUnit: 'g', packagePrice: 3.6 },
+  { keys: ['ternera magra'], packageQty: 400, packageUnit: 'g', packagePrice: 3.4 },
+  { keys: ['carne picada', 'ternera picada', 'vacuno picado'], packageQty: 400, packageUnit: 'g', packagePrice: 2.8 },
+  { keys: ['filete de ternera', 'bistec de ternera', 'solomillo'], packageQty: 300, packageUnit: 'g', packagePrice: 4.8 },
+  { keys: ['pavo picado', 'pavo magro'], packageQty: 400, packageUnit: 'g', packagePrice: 3.0 },
+  { keys: ['pechuga de pavo'], packageQty: 400, packageUnit: 'g', packagePrice: 3.6 },
+  { keys: ['queso'], packageQty: 250, packageUnit: 'g', packagePrice: 2.0 },
+  { keys: ['champin', 'champiñ'], packageQty: 250, packageUnit: 'g', packagePrice: 1.1 },
+  { keys: ['pimiento'], packageQty: 500, packageUnit: 'g', packagePrice: 1.5 },
+  { keys: ['cebolla'], packageQty: 1000, packageUnit: 'g', packagePrice: 1.5 },
+  { keys: ['zanahoria'], packageQty: 1000, packageUnit: 'g', packagePrice: 1.2 },
+  { keys: ['calabacin', 'calabacín'], packageQty: 500, packageUnit: 'g', packagePrice: 1.0 },
+  { keys: ['calabaza'], packageQty: 1000, packageUnit: 'g', packagePrice: 1.5 },
+  { keys: ['tomate'], packageQty: 1000, packageUnit: 'g', packagePrice: 2.5 },
+  { keys: ['brocoli', 'brócoli'], packageQty: 300, packageUnit: 'g', packagePrice: 0.9 },
+  { keys: ['boniato', 'batata'], packageQty: 1000, packageUnit: 'g', packagePrice: 2.0 },
+  { keys: ['patata'], packageQty: 1500, packageUnit: 'g', packagePrice: 1.5 },
+  { keys: ['arroz'], packageQty: 1000, packageUnit: 'g', packagePrice: 1.5 },
+  { keys: ['pasta integral', 'pasta cocida'], packageQty: 500, packageUnit: 'g', packagePrice: 1.25 },
+  { keys: ['pan integral'], packageQty: 460, packageUnit: 'g', packagePrice: 1.4 },
+  { keys: ['pan blanco'], packageQty: 460, packageUnit: 'g', packagePrice: 0.9 },
+  { keys: ['aceite de oliva'], packageQty: 1000, packageUnit: 'g', packagePrice: 9.0 },
+  { keys: ['yogur natural'], packageQty: 8, packageUnit: 'ud', packagePrice: 2.4 },
+  { keys: ['yogur griego'], packageQty: 4, packageUnit: 'ud', packagePrice: 1.6 },
+  { keys: ['leche semidesnatada'], packageQty: 1000, packageUnit: 'g', packagePrice: 0.9 },
+  { keys: ['leche entera'], packageQty: 1000, packageUnit: 'g', packagePrice: 0.9 },
+  { keys: ['aguacate'], packageQty: 2, packageUnit: 'ud', packagePrice: 1.6 },
+  { keys: ['gulas'], packageQty: 200, packageUnit: 'g', packagePrice: 3.2 },
+  { keys: ['jamon de pavo', 'jamón de pavo', 'jamon cocido', 'jamón cocido'], packageQty: 150, packageUnit: 'g', packagePrice: 0.75 },
+  { keys: ['jamon serrano', 'jamón serrano'], packageQty: 100, packageUnit: 'g', packagePrice: 1.4 },
+  { keys: ['bacon', 'panceta'], packageQty: 150, packageUnit: 'g', packagePrice: 1.8 },
+  { keys: ['chorizo'], packageQty: 250, packageUnit: 'g', packagePrice: 2.75 },
+  { keys: ['salchicha'], packageQty: 400, packageUnit: 'g', packagePrice: 2.8 },
+  { keys: ['albondiga', 'albóndiga'], packageQty: 18, packageUnit: 'ud', packagePrice: 3.5 },
+  { keys: ['hamburguesa'], packageQty: 4, packageUnit: 'ud', packagePrice: 3.6 },
+  { keys: ['nuez', 'nueces'], packageQty: 200, packageUnit: 'g', packagePrice: 3.0 },
+  { keys: ['almendras'], packageQty: 200, packageUnit: 'g', packagePrice: 2.6 },
+  { keys: ['frutos secos'], packageQty: 200, packageUnit: 'g', packagePrice: 2.8 },
+  { keys: ['mantequilla'], packageQty: 250, packageUnit: 'g', packagePrice: 2.25 },
+  { keys: ['mayonesa'], packageQty: 450, packageUnit: 'g', packagePrice: 2.25 }
+];
+
+function matchPackage(key) {
+  return PACKAGE_DB.find(p => p.keys.includes(key));
+}
+
 // Suma los ingredientes de las 7 comidas y cenas de la pestaña Menús,
 // reparte a partes iguales cuando una línea mezcla varios alimentos
 // reconocidos (p.ej. "pimiento y cebolla"), y genera un producto por
@@ -2228,19 +2290,32 @@ function generateShoppingListFromMenu() {
   state.shopping = state.shopping.filter(i => !i.fromMenu);
 
   let totalEstimado = 0;
-  Object.values(totals).forEach(({ grams, uds, price }) => {
-    let qtyLabel, importe = null;
+  Object.entries(totals).forEach(([key, { grams, uds, price }]) => {
+    const pack = matchPackage(key);
+    let qtyLabel, importe = null, packNote = '';
     if (grams > 0) {
-      qtyLabel = `${Math.round(grams)} g`;
+      qtyLabel = `necesitas ${Math.round(grams)} g`;
       if (price.eur100g) importe = price.eur100g * (grams / 100);
+      if (pack && pack.packageUnit === 'g') {
+        const n = Math.ceil(grams / pack.packageQty);
+        const realPrice = n * pack.packagePrice;
+        packNote = ` → compra ${n} paquete${n > 1 ? 's' : ''} de ${pack.packageQty} g (≈${realPrice.toFixed(2)}€)`;
+        importe = realPrice; // el total real es el de lo que compras de verdad, no lo prorrateado
+      }
     } else if (uds > 0) {
-      qtyLabel = `${Math.round(uds)} uds`;
+      qtyLabel = `necesitas ${Math.round(uds)} uds`;
       if (price.eurUd) importe = price.eurUd * uds;
+      if (pack && pack.packageUnit === 'ud') {
+        const n = Math.ceil(uds / pack.packageQty);
+        const realPrice = n * pack.packagePrice;
+        packNote = ` → compra ${n} paquete${n > 1 ? 's' : ''} de ${pack.packageQty} uds (≈${realPrice.toFixed(2)}€)`;
+        importe = realPrice;
+      }
     } else {
       qtyLabel = '';
     }
     if (importe != null) totalEstimado += importe;
-    const note = [qtyLabel, importe != null ? `≈${importe.toFixed(2)}€` : 'precio no estimado']
+    const note = [qtyLabel + packNote, packNote ? '' : (importe != null ? `≈${importe.toFixed(2)}€` : 'precio no estimado')]
       .filter(Boolean).join(' · ');
     state.shopping.push({
       id: Date.now() + Math.random(),
@@ -2267,7 +2342,7 @@ function generateShoppingListFromMenu() {
   renderShopping();
 
   const statusEl = document.getElementById('generateShoppingStatus');
-  statusEl.textContent = `Lista generada — total estimado ≈${totalEstimado.toFixed(2)}€ (no cuenta lo que no se pudo calcular). Revisa cantidades y súper antes de ir a comprar.`;
+  statusEl.textContent = `Lista generada — total real de la compra ≈${totalEstimado.toFixed(2)}€ (ya cuenta los paquetes enteros que tienes que comprar, no solo lo que lleva la receta; no incluye lo que no se pudo calcular). Revisa cantidades y súper antes de ir a comprar.`;
 }
 
 document.getElementById('generateShoppingBtn').addEventListener('click', generateShoppingListFromMenu);
@@ -2655,6 +2730,62 @@ document.getElementById('graficosStartTodayBtn').addEventListener('click', () =>
 document.getElementById('graficosStartClearBtn').addEventListener('click', () => {
   state.graficosStart = null;
   save(STORAGE_KEYS.graficosStart, null);
+  renderGraficos();
+});
+
+/* ---------- BIENVENIDA (primera vez) ----------
+   Se enseña solo si nunca se ha rellenado en este navegador. Junta
+   altura+peso actual y el objetivo en un solo paso, para no tener que
+   ir a buscarlo por las pestañas la primera vez que se abre la app.
+------------------------------------------------------------------- */
+const ONBOARDING_DEFAULTS = {
+  bajar: { fat: 24, muscle: 34 },
+  subir: { fat: 26, muscle: 38 },
+  tonificar: { fat: 25, muscle: 36 }
+};
+function fillOnboardingSuggestion() {
+  const type = document.getElementById('obGoalType').value;
+  const sug = ONBOARDING_DEFAULTS[type];
+  const fatInput = document.getElementById('obGoalFat');
+  const muscleInput = document.getElementById('obGoalMuscle');
+  if (!fatInput.value) fatInput.value = sug.fat;
+  if (!muscleInput.value) muscleInput.value = sug.muscle;
+}
+if (!load(STORAGE_KEYS.onboarded, false)) {
+  document.getElementById('onboardingModal').classList.remove('hidden');
+  const defaultDate = new Date();
+  defaultDate.setMonth(defaultDate.getMonth() + 3);
+  document.getElementById('obGoalDate').value = localDateKey(defaultDate);
+  fillOnboardingSuggestion();
+}
+document.getElementById('obGoalType').addEventListener('change', fillOnboardingSuggestion);
+document.getElementById('onboardingForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const height = parseFloat(document.getElementById('obHeightInput').value);
+  const weight = parseFloat(document.getElementById('obWeightInput').value);
+  if (height) save('cuaderno.height', height);
+  if (weight) {
+    state.weights.push({ id: Date.now(), date: new Date().toISOString(), kg: weight });
+    state.weights.sort((a, b) => new Date(a.date) - new Date(b.date));
+    save(STORAGE_KEYS.weights, state.weights);
+  }
+  const fat = parseFloat(document.getElementById('obGoalFat').value);
+  const muscle = parseFloat(document.getElementById('obGoalMuscle').value);
+  const date = document.getElementById('obGoalDate').value;
+  state.goals = {
+    fat: fat || state.goals.fat,
+    muscle: muscle || state.goals.muscle,
+    date: date || state.goals.date
+  };
+  save(STORAGE_KEYS.goals, state.goals);
+  save(STORAGE_KEYS.onboarded, true);
+  document.getElementById('onboardingModal').classList.add('hidden');
+  // Refresca los campos/vistas que dependen de esto.
+  heightInput.value = height || heightInput.value;
+  document.getElementById('goalFatInput').value = state.goals.fat;
+  document.getElementById('goalMuscleInput').value = state.goals.muscle;
+  document.getElementById('goalDateInput').value = state.goals.date;
+  renderWeights();
   renderGraficos();
 });
 
