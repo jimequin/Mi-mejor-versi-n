@@ -2258,6 +2258,50 @@ function matchPackage(key) {
   return PACKAGE_DB.find(p => p.keys.includes(key));
 }
 
+// No podemos leer precios reales de cada súper en directo (ver README),
+// así que para comparar Mercadona/Lidl/Carrefour Express se aplica una
+// diferencia típica sobre el precio de Mercadona (que es el que tiene
+// guardado cada producto) — Lidl suele salir algo más barato en
+// productos de marca blanca, Carrefour Express (formato de barrio,
+// conveniencia) suele salir algo más caro. Son estimaciones, no
+// precios reales escaneados hoy.
+const STORES = ['Mercadona', 'Lidl', 'Carrefour Express'];
+const STORE_MULTIPLIER = { Mercadona: 1, Lidl: 0.87, 'Carrefour Express': 1.12 };
+
+let selectedShopStore = 'Mercadona';
+document.querySelectorAll('#shopStorePills .week-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedShopStore = btn.dataset.store;
+    document.querySelectorAll('#shopStorePills .week-pill').forEach(b => {
+      b.classList.toggle('selected', b.dataset.store === selectedShopStore);
+    });
+  });
+});
+document.querySelector('#shopStorePills .week-pill').classList.add('selected');
+
+// Precio e info de paquete de un producto en UN súper concreto —
+// aplica el multiplicador de ese súper al precio base (Mercadona).
+function computeItemCostAtStore(store, grams, uds, price, pack) {
+  const mult = STORE_MULTIPLIER[store];
+  let importe = null, packNote = '';
+  if (grams > 0) {
+    if (price.eur100g) importe = price.eur100g * mult * (grams / 100);
+    if (pack && pack.packageUnit === 'g') {
+      const n = Math.ceil(grams / pack.packageQty);
+      packNote = `${n} paquete${n > 1 ? 's' : ''} de ${pack.packageQty} g`;
+      importe = n * pack.packagePrice * mult;
+    }
+  } else if (uds > 0) {
+    if (price.eurUd) importe = price.eurUd * mult * uds;
+    if (pack && pack.packageUnit === 'ud') {
+      const n = Math.ceil(uds / pack.packageQty);
+      packNote = `${n} paquete${n > 1 ? 's' : ''} de ${pack.packageQty} uds`;
+      importe = n * pack.packagePrice * mult;
+    }
+  }
+  return { importe, packNote };
+}
+
 // Suma los ingredientes de las 7 comidas y cenas de la pestaña Menús,
 // reparte a partes iguales cuando una línea mezcla varios alimentos
 // reconocidos (p.ej. "pimiento y cebolla"), y genera un producto por
@@ -2295,35 +2339,36 @@ function generateShoppingListFromMenu() {
   let totalEstimado = 0;
   Object.entries(totals).forEach(([key, { grams, uds, price }]) => {
     const pack = matchPackage(key);
-    let qtyLabel, importe = null, packNote = '';
-    if (grams > 0) {
-      qtyLabel = `necesitas ${Math.round(grams)} g`;
-      if (price.eur100g) importe = price.eur100g * (grams / 100);
-      if (pack && pack.packageUnit === 'g') {
-        const n = Math.ceil(grams / pack.packageQty);
-        const realPrice = n * pack.packagePrice;
-        packNote = ` → compra ${n} paquete${n > 1 ? 's' : ''} de ${pack.packageQty} g (≈${realPrice.toFixed(2)}€)`;
-        importe = realPrice; // el total real es el de lo que compras de verdad, no lo prorrateado
-      }
-    } else if (uds > 0) {
-      qtyLabel = `necesitas ${Math.round(uds)} uds`;
-      if (price.eurUd) importe = price.eurUd * uds;
-      if (pack && pack.packageUnit === 'ud') {
-        const n = Math.ceil(uds / pack.packageQty);
-        const realPrice = n * pack.packagePrice;
-        packNote = ` → compra ${n} paquete${n > 1 ? 's' : ''} de ${pack.packageQty} uds (≈${realPrice.toFixed(2)}€)`;
-        importe = realPrice;
-      }
+    const qtyLabel = grams > 0 ? `necesitas ${Math.round(grams)} g` : (uds > 0 ? `necesitas ${Math.round(uds)} uds` : '');
+
+    let chosenStore, importe, packNote;
+    if (selectedShopStore === 'barato') {
+      // Mira los 3 súpers y se queda con el más barato para ESTE producto
+      // — así la lista puede acabar mezclando súpers, uno por producto.
+      let best = null;
+      STORES.forEach(store => {
+        const r = computeItemCostAtStore(store, grams, uds, price, pack);
+        if (r.importe != null && (!best || r.importe < best.importe)) best = { store, ...r };
+      });
+      chosenStore = best ? best.store : price.store;
+      importe = best ? best.importe : null;
+      packNote = best ? best.packNote : '';
     } else {
-      qtyLabel = '';
+      const r = computeItemCostAtStore(selectedShopStore, grams, uds, price, pack);
+      chosenStore = selectedShopStore;
+      importe = r.importe;
+      packNote = r.packNote;
     }
+
     if (importe != null) totalEstimado += importe;
-    const note = [qtyLabel + packNote, packNote ? '' : (importe != null ? `≈${importe.toFixed(2)}€` : 'precio no estimado')]
-      .filter(Boolean).join(' · ');
+    const compraTxt = packNote
+      ? `${chosenStore}: compra ${packNote} (≈${importe.toFixed(2)}€)`
+      : (importe != null ? `${chosenStore}: ≈${importe.toFixed(2)}€` : 'precio no estimado');
+    const note = [qtyLabel, compraTxt].filter(Boolean).join(' · ');
     state.shopping.push({
       id: Date.now() + Math.random(),
       name: price.label,
-      store: price.store,
+      store: chosenStore,
       note,
       done: false,
       fromMenu: true
@@ -2345,7 +2390,8 @@ function generateShoppingListFromMenu() {
   renderShopping();
 
   const statusEl = document.getElementById('generateShoppingStatus');
-  statusEl.textContent = `Lista generada — total real de la compra ≈${totalEstimado.toFixed(2)}€ (ya cuenta los paquetes enteros que tienes que comprar, no solo lo que lleva la receta; no incluye lo que no se pudo calcular). Revisa cantidades y súper antes de ir a comprar.`;
+  const storeLabel = selectedShopStore === 'barato' ? 'mezclando el más barato de cada súper' : `en ${selectedShopStore}`;
+  statusEl.textContent = `Lista generada (${storeLabel}) — total real de la compra ≈${totalEstimado.toFixed(2)}€ (ya cuenta los paquetes enteros que tienes que comprar, no solo lo que lleva la receta; no incluye lo que no se pudo calcular). Revisa cantidades y precios antes de ir a comprar.`;
 }
 
 document.getElementById('generateShoppingBtn').addEventListener('click', generateShoppingListFromMenu);
