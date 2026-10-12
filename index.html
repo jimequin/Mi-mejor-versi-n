@@ -19,6 +19,37 @@
 
 <div class="app">
 
+  <!-- Bienvenida: se enseña solo la primera vez que se abre la app en
+       este navegador (se guarda en localStorage para no volver a
+       preguntar). Junta altura+peso actual y el objetivo en un único
+       paso, en vez de tener que ir a buscarlo por las pestañas. -->
+  <div id="onboardingModal" class="photo-modal hidden">
+    <div class="onboarding-card">
+      <p class="eyebrow">👋 Antes de empezar</p>
+      <p class="hint-text">Unas preguntas rápidas, solo una vez — luego puedes cambiar todo esto cuando quieras desde Nutrición y Gráficos.</p>
+      <form id="onboardingForm" class="stack-form">
+        <label class="menu-field-label">Altura y peso actual</label>
+        <div class="row-form">
+          <input type="number" id="obHeightInput" placeholder="Altura (cm)" required>
+          <input type="number" step="0.1" id="obWeightInput" placeholder="Peso (kg)" required>
+        </div>
+        <label class="menu-field-label">¿Cuál es tu objetivo?</label>
+        <select id="obGoalType">
+          <option value="bajar">Bajar grasa</option>
+          <option value="subir">Subir músculo</option>
+          <option value="tonificar">Tonificar (un poco de las dos)</option>
+        </select>
+        <label class="menu-field-label">Lo que quieres conseguir</label>
+        <div class="row-form">
+          <input type="number" step="0.1" id="obGoalFat" placeholder="Grasa objetivo %">
+          <input type="number" step="0.1" id="obGoalMuscle" placeholder="Músculo objetivo (kg)">
+        </div>
+        <input type="date" id="obGoalDate">
+        <button type="submit" class="btn btn-lime">Empezar</button>
+      </form>
+    </div>
+  </div>
+
   <!-- Cabecera: foto de progreso -->
   <header class="header">
     <div class="header-top">
