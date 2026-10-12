@@ -2370,6 +2370,7 @@ function generateShoppingListFromMenu() {
       name: price.label,
       store: chosenStore,
       note,
+      price: importe, // guardado aparte (no solo en el texto) para poder sumar el total
       done: false,
       fromMenu: true
     });
@@ -2444,6 +2445,20 @@ function renderShopping() {
       </li>
     `).join('')}
   `).join('');
+
+  // Total de la lista — solo suma los productos que tienen un precio
+  // guardado (los generados desde el Menú); los que añades tú a mano
+  // con el campo "Oferta/precio" en texto libre no se pueden sumar,
+  // así que no cuentan aquí.
+  const withPrice = state.shopping.filter(i => i.price != null);
+  const totalEl = document.getElementById('shoppingTotal');
+  if (!withPrice.length) {
+    totalEl.textContent = '';
+  } else {
+    const total = withPrice.reduce((sum, i) => sum + i.price, 0);
+    const pendiente = withPrice.filter(i => !i.done).reduce((sum, i) => sum + i.price, 0);
+    totalEl.textContent = `🧾 Total: ≈${total.toFixed(2)}€ · Pendiente de comprar: ≈${pendiente.toFixed(2)}€`;
+  }
 }
 
 /* ---------- GRÁFICOS ----------
