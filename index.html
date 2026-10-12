@@ -40,10 +40,10 @@
           <option value="tonificar">Tonificar (un poco de las dos)</option>
         </select>
         <label class="menu-field-label">Lo que quieres conseguir</label>
-        <p class="hint-text">Grasa corporal = qué % de tu peso es grasa (te lo da la báscula, se pone en %). Músculo = cuántos kilos de masa muscular tienes (también te lo da la báscula, se pone en kg, no en %).</p>
+        <p class="hint-text">Grasa en %, músculo en kg.</p>
         <div class="row-form">
-          <input type="number" step="0.1" id="obGoalFat" placeholder="Grasa objetivo (en %, ej. 24)">
-          <input type="number" step="0.1" id="obGoalMuscle" placeholder="Músculo objetivo (en kg, ej. 35)">
+          <input type="number" step="0.1" id="obGoalFat" placeholder="Grasa objetivo %">
+          <input type="number" step="0.1" id="obGoalMuscle" placeholder="Músculo objetivo kg">
         </div>
         <input type="date" id="obGoalDate">
         <button type="submit" class="btn btn-lime">Empezar</button>
@@ -73,7 +73,7 @@
     <section class="tab" id="tab-nutricion">
       <div class="card margin-card">
         <p class="eyebrow">⚖️ Peso de hoy</p>
-        <p class="hint-text">El peso lo escribes tú a mano aquí. La foto de la báscula (justo abajo) se usa solo para leer el resto: grasa corporal, músculo, agua, grasa visceral, masa ósea, metabolismo basal y proteína.</p>
+        <p class="hint-text">El peso va aquí a mano; la foto de la báscula (abajo) es para el resto de datos.</p>
         <div class="row-form">
           <input type="number" step="0.1" id="quickWeightInput" placeholder="kg" inputmode="decimal">
           <button type="button" id="quickWeightBtn" class="btn btn-lime">Guardar peso</button>
@@ -82,7 +82,7 @@
 
       <div class="card margin-card" id="weightFolderCard">
         <p class="eyebrow">📁 Carpeta de fotos · Báscula</p>
-        <p class="hint-text">Conecta la carpeta del móvil donde guardas las fotos de la báscula (solo Android + Chrome). La app busca fotos nuevas e intenta leer la composición corporal (grasa, músculo, agua, visceral, ósea, metabolismo, proteína) — revisa siempre los números antes de guardar, la lectura automática puede fallar.</p>
+        <p class="hint-text">Solo Android + Chrome. Lee la composición corporal de la foto — revisa los números antes de guardar.</p>
         <div class="row-form">
           <button type="button" id="connectWeightFolderBtn" class="btn btn-ghost">📂 Conectar carpeta</button>
           <button type="button" id="scanWeightFolderBtn" class="btn btn-ghost hidden">🔄 Buscar fotos nuevas</button>
@@ -144,7 +144,7 @@
 
       <div class="card margin-card">
         <p class="eyebrow">🚶 Pasos</p>
-        <p class="hint-text">No hay forma de conectar la app directamente con Zepp Life ni Google Fit (son apps cerradas, sin puerta de entrada pública) — así que de momento escribe aquí los pasos que marque tu móvil/reloj y la app calcula las kcal caminadas con tu peso, y lo cuenta como un entreno más. Revisa la fecha si los apuntas ya pasada la medianoche — por defecto pone hoy, pero puedes cambiarla al día de ayer.</p>
+        <p class="hint-text">Sin conexión posible con Zepp/Google Fit — escribe aquí los pasos a mano. Revisa la fecha si los apuntas pasada la medianoche.</p>
         <div class="row-form">
           <input type="number" id="stepsInput" placeholder="Pasos" inputmode="numeric">
           <input type="date" id="stepsDateInput">
@@ -170,7 +170,7 @@
 
       <div class="card margin-card" id="workoutFolderCard">
         <p class="eyebrow">📁 Carpeta de fotos · Entreno</p>
-        <p class="hint-text">Conecta la carpeta del móvil donde guardas las capturas del entreno (solo Android + Chrome). Intenta leer minutos y kcal si aparecen en la foto — revisa antes de guardar.</p>
+        <p class="hint-text">Solo Android + Chrome. Revisa antes de guardar.</p>
         <div class="row-form">
           <button type="button" id="connectWorkoutFolderBtn" class="btn btn-ghost">📂 Conectar carpeta</button>
           <button type="button" id="scanWorkoutFolderBtn" class="btn btn-ghost hidden">🔄 Buscar fotos nuevas</button>
@@ -210,7 +210,7 @@
 
       <div class="card margin-card">
         <p class="eyebrow">Menú semanal</p>
-        <p class="hint-text">Es tu menú de verdad: cada comida es una lista de ingredientes con su cantidad — edítalos, añade o quita los que quieras, se guarda solo. Debajo de cada día tienes las kcal y macros estimadas a partir de esos ingredientes (aproximado, no analiza etiquetas reales — distinto del Diario de comidas de la pestaña Compra, que es lo que apuntas cuando ya te lo has comido). Puedes adelantar y preparar la semana que viene sin perder la de ahora — "Generar lista de la compra" usa la semana que tengas seleccionada aquí.</p>
+        <p class="hint-text">Edita los ingredientes y cantidades — se guarda solo y calcula kcal/macros estimadas.</p>
         <div id="menuWeekPills" class="week-pills">
           <button type="button" class="week-pill menu-week-pill" data-week="current">Esta semana</button>
           <button type="button" class="week-pill menu-week-pill" data-week="next">Semana que viene</button>
@@ -233,7 +233,7 @@
       <div class="card margin-card">
         <p class="eyebrow">🎯 Tu objetivo</p>
         <p class="hint-text">Hasta el 1 de diciembre. Se compara con tu última medición registrada en Nutrición.</p>
-        <p class="hint-text">Grasa corporal = qué % de tu peso es grasa (se pone en <b>%</b>). Músculo = cuántos kilos de masa muscular tienes (se pone en <b>kg</b>, no en %). Los dos te los da la báscula.</p>
+        <p class="hint-text">Grasa en %, músculo en kg.</p>
         <form id="goalForm" class="stack-form">
           <div class="row-form">
             <input type="number" step="0.1" id="goalFatInput" placeholder="Grasa objetivo (en %, ej. 24)">
@@ -247,7 +247,7 @@
 
       <div class="card margin-card">
         <p class="eyebrow">📅 Desde cuándo ver los gráficos</p>
-        <p class="hint-text">Si quieres dejar atrás datos antiguos (por ejemplo de antes de arreglar el fallo de fechas) y que todas las gráficas de aquí abajo empiecen desde una fecha en adelante, elígela aquí. No borra nada, solo lo oculta de estas gráficas.</p>
+        <p class="hint-text">Filtra las gráficas de abajo desde una fecha — no borra nada, solo oculta.</p>
         <div class="row-form">
           <input type="date" id="graficosStartInput">
           <button type="button" id="graficosStartTodayBtn" class="btn btn-ghost btn-sm">Empezar desde hoy</button>
@@ -361,7 +361,7 @@
 
       <div class="card margin-card">
         <p class="eyebrow">🧾 Generar lista desde el menú semanal</p>
-        <p class="hint-text">Suma los ingredientes de las 7 comidas y cenas de la pestaña Menús, calcula cuántos paquetes reales hay que comprar de cada cosa y te da un precio <b>estimado</b> (no son precios exactos de hoy, son orientativos — Lidl y Carrefour Express se calculan aplicando una diferencia típica sobre el precio de Mercadona, no son precios reales escaneados). Puedes editar cualquier producto después a mano.</p>
+        <p class="hint-text">Calcula paquetes reales a comprar y un precio estimado (orientativo, no exacto). Editable a mano después.</p>
         <p class="menu-field-label">¿A qué súper vas?</p>
         <div id="shopStorePills" class="week-pills" style="flex-wrap:wrap;">
           <button type="button" class="week-pill menu-week-pill" data-store="Mercadona">Mercadona</button>
