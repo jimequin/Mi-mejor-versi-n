@@ -843,17 +843,28 @@ function localDateKey(d) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function getMondayOfCurrentWeek() {
-  const d = new Date();
-  const day = d.getDay() === 0 ? 7 : d.getDay(); // lunes = 1 ... domingo = 7
-  d.setDate(d.getDate() - (day - 1));
-  d.setHours(0, 0, 0, 0);
-  return d;
+// Las semanas (Menú, y los gráficos de "por semana") empiezan en
+// viernes, no en lunes — así que "esta semana" pasa a ser "la semana
+// pasada" cada viernes, no cada lunes. Devuelve el viernes (a medianoche)
+// de la semana a la que pertenece la fecha dada.
+function startOfWeek(d) {
+  const date = new Date(d);
+  const daysSinceFriday = (date.getDay() + 2) % 7; // viernes=0 ... jueves=6
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - daysSinceFriday);
+  return date;
 }
+// Para cada día de la tarjeta del Menú (0=Lunes...6=Domingo), cuántos
+// días hay que sumarle al viernes-ancla para llegar a su fecha real —
+// las tarjetas siguen en el mismo orden de siempre (Lunes...Domingo),
+// solo cambia a qué fecha corresponde cada una: dentro de un ciclo
+// viernes-jueves, viernes/sábado/domingo van ANTES que
+// lunes/martes/miércoles/jueves en el calendario.
+const DAY_OFFSET_FROM_FRIDAY = [3, 4, 5, 6, 0, 1, 2]; // Lunes..Domingo
 function dateKeyForDayIndex(idx) {
-  const monday = getMondayOfCurrentWeek();
-  const d = new Date(monday);
-  d.setDate(monday.getDate() + idx);
+  const friday = startOfWeek(new Date());
+  const d = new Date(friday);
+  d.setDate(friday.getDate() + DAY_OFFSET_FROM_FRIDAY[idx]);
   return localDateKey(d);
 }
 function todayKey() {
@@ -1076,14 +1087,6 @@ document.getElementById('stepsBtn').addEventListener('click', () => {
   stepsDateInput.value = todayKey();
   renderWorkouts();
 });
-
-function startOfWeek(d) {
-  const date = new Date(d);
-  const day = date.getDay() === 0 ? 7 : date.getDay(); // lunes = 1
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - (day - 1));
-  return date;
-}
 
 function renderWorkouts() {
   workoutList.innerHTML = [...state.workouts].reverse().map(w => {
